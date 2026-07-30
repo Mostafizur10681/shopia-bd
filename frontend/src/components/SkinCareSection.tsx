@@ -99,8 +99,8 @@ export function SkinCareSection() {
           </div>
         </div>
 
-        {/* Right Side: 6-Product 3x2 Grid Container (Col 8) */}
-        <div className="lg:col-span-8 bg-white grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 divide-x divide-y divide-slate-100">
+        {/* Right Side: 6-Product Grid Container (Col 8) */}
+        <div className="lg:col-span-8 bg-white grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
           {skinCareProducts.map((prod) => (
             <div 
               key={prod.id} 

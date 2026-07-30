@@ -83,8 +83,8 @@ export function LatestProductsSlider({ products }: { products: any[] }) {
           <ChevronRight className="w-6 h-6 stroke-[3]" />
         </button>
 
-        {/* 5-Column Grid Card Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-0 bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm divide-x divide-slate-100 relative z-10">
+        {/* Responsive Grid Card Row */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-0 bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm divide-y sm:divide-y-0 sm:divide-x divide-slate-100 relative z-10">
           {visibleProducts.map((prod, idx) => (
             <div 
               key={`${prod.id}-${idx}`} 

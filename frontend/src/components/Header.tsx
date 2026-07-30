@@ -3,14 +3,16 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Search, Heart, ShoppingCart, User, X, ChevronDown, Plus, Minus } from "lucide-react";
+import { Search, Heart, ShoppingCart, User, Truck, X, ChevronDown, Plus, Minus, Menu, Phone } from "lucide-react";
 import { useShop } from "@/context/ShopContext";
 import productsData from "@/data/products.json";
 
 export function Header() {
   const [showTopNotice, setShowTopNotice] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const { wishlist, cart, addToCart, updateQuantity, removeFromCart, setQuickViewProduct } = useShop();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileSearchOpen, setMobileSearchOpen] = useState(false);
+  const { wishlist, cart, user, updateQuantity, removeFromCart, setQuickViewProduct } = useShop();
 
   const totalCartCount = cart.reduce((acc, item) => acc + (item.quantity || 1), 0);
   const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
@@ -41,17 +43,31 @@ export function Header() {
       )}
 
       {/* 2. Main Middle Bar */}
-      <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between gap-6">
-        {/* Brand Logo */}
-        <Link href="/" className="flex items-center gap-1 group shrink-0">
-          <div className="flex items-center">
-            <span className="text-3xl sm:text-4xl font-black italic tracking-tighter text-[#b30047]">
-              S<span className="text-[#e60000]">HOPIA</span>
-            </span>
-          </div>
-        </Link>
+      <div className="max-w-7xl mx-auto px-4 py-3 sm:py-4 flex items-center justify-between gap-3 sm:gap-6">
+        
+        {/* Left: Mobile Hamburger Toggle + Brand Logo */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Mobile Hamburger Drawer Trigger */}
+          <button
+            type="button"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="lg:hidden p-1.5 text-slate-700 hover:text-[#0b3b82] transition rounded-lg border border-slate-200"
+            aria-label="Toggle navigation menu"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
 
-        {/* Center Search Input with Instant Dropdown Results */}
+          {/* Brand Logo */}
+          <Link href="/" className="flex items-center gap-1 group shrink-0">
+            <div className="flex items-center">
+              <span className="text-2xl sm:text-3xl lg:text-4xl font-black italic tracking-tighter text-[#b30047]">
+                S<span className="text-[#e60000]">HOPIA</span>
+              </span>
+            </div>
+          </Link>
+        </div>
+
+        {/* Center Search Input with Instant Dropdown Results (Desktop / Tablet) */}
         <div className="flex-1 max-w-xl mx-auto relative hidden md:block">
           <div className="relative">
             <input
@@ -63,13 +79,14 @@ export function Header() {
             />
             {searchQuery ? (
               <button
+                type="button"
                 onClick={() => setSearchQuery("")}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             ) : (
-              <button className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-700 hover:text-[#0b3b82] transition-colors">
+              <button type="button" className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-700 hover:text-[#0b3b82] transition-colors">
                 <Search className="w-4 h-4 stroke-[2.5]" />
               </button>
             )}
@@ -118,10 +135,23 @@ export function Header() {
         </div>
 
         {/* Right User Actions */}
-        <div className="flex items-center gap-6">
-          {/* User Icon */}
-          <Link href="/account" className="text-slate-700 hover:text-[#b30047] transition">
-            <User className="w-6 h-6 stroke-[1.8]" />
+        <div className="flex items-center gap-4 sm:gap-6">
+          
+          {/* Order Tracking Icon */}
+          <Link href="/track-order" className="text-slate-700 hover:text-[#0b3b82] transition flex items-center gap-1 text-xs font-bold" title="Track Your Order">
+            <Truck className="w-5 h-5 sm:w-6 sm:h-6 stroke-[1.8] text-[#0b3b82]" />
+            <span className="hidden lg:inline">Track Order</span>
+          </Link>
+
+          {/* User Icon / Profile Badge */}
+          <Link href="/account" className="text-slate-700 hover:text-[#b30047] transition flex items-center gap-1.5" title={user ? `Logged in as ${user.name}` : "Sign In / Register"}>
+            {user ? (
+              <span className="w-7 h-7 rounded-full bg-[#0b3b82] text-white font-bold text-xs flex items-center justify-center border border-slate-200">
+                {user.name.charAt(0).toUpperCase()}
+              </span>
+            ) : (
+              <User className="w-6 h-6 stroke-[1.8]" />
+            )}
           </Link>
 
           {/* Wishlist Icon with Badge */}
@@ -260,52 +290,182 @@ export function Header() {
         </div>
       </div>
 
-      {/* 3. Bottom Category Navigation Menu */}
-      <div className="border-t border-slate-100 bg-white text-[#0b3b82] font-semibold text-sm">
+      {/* Mobile Search Bar Row (Always visible on mobile & small screens) */}
+      <div className="md:hidden px-4 pb-3 pt-1 bg-white border-t border-slate-100 relative">
+        <div className="relative">
+          <input
+            type="text"
+            placeholder="Search products (e.g. Maca, Chia, VWash...)"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full bg-slate-100/90 border border-slate-200 rounded-full pl-4 pr-10 py-2 text-xs text-slate-800 focus:outline-none focus:bg-white focus:ring-2 focus:ring-[#0b3b82]/30 transition"
+          />
+          {searchQuery ? (
+            <button
+              type="button"
+              onClick={() => setSearchQuery("")}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <button type="button" className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-700">
+              <Search className="w-3.5 h-3.5 stroke-[2.5]" />
+            </button>
+          )}
+        </div>
+
+        {/* Mobile Instant Search Results Dropdown */}
+        {searchQuery.trim() !== "" && (
+          <div className="absolute left-4 right-4 top-full mt-1 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-50 max-h-72 overflow-y-auto divide-y divide-slate-100">
+            {searchResults.length === 0 ? (
+              <div className="p-4 text-center text-slate-400 text-xs">No products found matching &quot;{searchQuery}&quot;</div>
+            ) : (
+              searchResults.map((prod) => (
+                <div
+                  key={prod.id}
+                  onClick={() => {
+                    setQuickViewProduct(prod);
+                    setSearchQuery("");
+                  }}
+                  className="p-2.5 flex items-center gap-3 hover:bg-slate-50 cursor-pointer"
+                >
+                  <div className="w-9 h-9 relative shrink-0 rounded-lg overflow-hidden bg-slate-50 border border-slate-100 p-0.5">
+                    <Image src={prod.mainImage} alt={prod.name} fill className="object-contain" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-xs font-bold text-slate-800 truncate">{prod.name}</h4>
+                    <p className="text-[10px] text-slate-400">{prod.category}</p>
+                  </div>
+                  <div className="text-xs font-black text-[#ff8c00] shrink-0">৳{prod.price}</div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* 3. Bottom Desktop Category Navigation Bar */}
+      <div className="hidden lg:block border-t border-slate-100 bg-white text-[#0b3b82] font-semibold text-xs lg:text-sm">
         <div className="max-w-7xl mx-auto px-4 flex items-center justify-between py-2.5">
-          <nav className="flex items-center gap-8 overflow-x-auto">
-            <Link href="/" className="text-[#0b3b82] hover:text-[#b30047] transition whitespace-nowrap">
+          <nav className="flex items-center gap-6 xl:gap-8 overflow-x-auto">
+            <Link href="/" className="text-[#0b3b82] hover:text-[#b30047] transition whitespace-nowrap font-bold">
               Home
             </Link>
-            <Link href="/categories/organic-food" className="hover:text-[#b30047] transition whitespace-nowrap">
+            <Link href="/" className="hover:text-[#b30047] transition whitespace-nowrap">
               Organic Food
             </Link>
-            <Link href="/categories/beauty" className="hover:text-[#b30047] transition whitespace-nowrap">
+            <Link href="/" className="hover:text-[#b30047] transition whitespace-nowrap">
               Beauty
             </Link>
-            <Link href="/categories/food-supplements" className="hover:text-[#b30047] transition whitespace-nowrap">
+            <Link href="/" className="hover:text-[#b30047] transition whitespace-nowrap">
               Food Supplements
             </Link>
-
-            {/* Dropdown Items */}
-            <div className="relative group cursor-pointer flex items-center gap-1 hover:text-[#b30047] transition whitespace-nowrap">
-              <span>Health</span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </div>
-
-            <div className="relative group cursor-pointer flex items-center gap-1 hover:text-[#b30047] transition whitespace-nowrap">
-              <span>Babies Hub</span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </div>
-
-            <div className="relative group cursor-pointer flex items-center gap-1 hover:text-[#b30047] transition whitespace-nowrap">
-              <span>Grocery</span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </div>
-
-            <div className="relative group cursor-pointer flex items-center gap-1 hover:text-[#b30047] transition whitespace-nowrap">
-              <span>Pharma Point</span>
-              <ChevronDown className="w-3.5 h-3.5" />
-            </div>
+            <Link href="/sales" className="text-rose-600 hover:text-[#b30047] font-bold transition whitespace-nowrap">
+              Special Sales 🔥
+            </Link>
+            <Link href="/about" className="hover:text-[#b30047] transition whitespace-nowrap">
+              About Us
+            </Link>
+            <Link href="/delivery" className="hover:text-[#b30047] transition whitespace-nowrap">
+              Delivery Info
+            </Link>
           </nav>
 
-          {/* Right Phone Call Hotline */}
-          <div className="hidden lg:flex items-center gap-1 text-slate-500 text-xs whitespace-nowrap">
+          {/* Hotline */}
+          <div className="flex items-center gap-1.5 text-slate-500 text-xs shrink-0">
+            <Phone className="w-3.5 h-3.5 text-[#0b3b82]" />
             <span>Call Us</span>
-            <span className="font-bold text-[#0b3b82] text-sm ml-1">01681-135030</span>
+            <a href="tel:01681135030" className="font-bold text-[#0b3b82] text-sm ml-0.5 hover:underline">01681-135030</a>
           </div>
         </div>
       </div>
+
+      {/* 4. Mobile Side Navigation Drawer (Toggled by Hamburger button) */}
+      {mobileMenuOpen && (
+        <div className="lg:hidden fixed inset-0 z-50 flex">
+          <div 
+            className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs transition-opacity" 
+            onClick={() => setMobileMenuOpen(false)}
+          />
+
+          <div className="relative w-4/5 max-w-xs bg-white h-full shadow-2xl flex flex-col justify-between z-10 animate-in slide-in-from-left duration-300">
+            <div className="p-5 space-y-6 overflow-y-auto">
+              
+              {/* Drawer Header */}
+              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
+                <span className="text-2xl font-black italic text-[#b30047]">
+                  S<span className="text-[#e60000]">HOPIA</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-slate-800 rounded-full border border-slate-200"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Mobile Nav Links */}
+              <nav className="flex flex-col space-y-1 text-sm font-bold text-slate-700">
+                <Link 
+                  href="/" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl hover:bg-slate-50 hover:text-[#0b3b82] transition"
+                >
+                  Home
+                </Link>
+                <Link 
+                  href="/track-order" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl hover:bg-slate-50 text-[#0b3b82] flex items-center gap-2 transition"
+                >
+                  <Truck className="w-4 h-4" /> Track Order
+                </Link>
+                <Link 
+                  href="/sales" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl hover:bg-slate-50 text-rose-600 transition"
+                >
+                  Special Sales 🔥
+                </Link>
+                <Link 
+                  href="/about" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl hover:bg-slate-50 hover:text-[#0b3b82] transition"
+                >
+                  About Us
+                </Link>
+                <Link 
+                  href="/delivery" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl hover:bg-slate-50 hover:text-[#0b3b82] transition"
+                >
+                  Delivery Info
+                </Link>
+                <Link 
+                  href="/account" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl hover:bg-slate-50 hover:text-[#0b3b82] transition"
+                >
+                  My Account &amp; Dashboard
+                </Link>
+              </nav>
+            </div>
+
+            {/* Mobile Drawer Footer Hotline */}
+            <div className="p-5 bg-slate-50 border-t border-slate-100 space-y-2">
+              <p className="text-xs text-slate-400 font-bold">Order Hotline Support</p>
+              <a 
+                href="tel:01681135030"
+                className="bg-[#0b3b82] text-white font-bold text-xs py-2.5 px-4 rounded-xl flex items-center justify-center gap-2 shadow-xs"
+              >
+                <Phone className="w-3.5 h-3.5" /> 01681-135030
+              </a>
+            </div>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

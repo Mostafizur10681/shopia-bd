@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import productsData from "@/data/products.json";
 import { BestSellingSlider } from "@/components/BestSellingSlider";
+import { TrustBadgesBar } from "@/components/TrustBadgesBar";
 import { useShop } from "@/context/ShopContext";
 import { 
   Heart, 
@@ -385,8 +386,13 @@ export default function ProductDetailsPage() {
         </div>
 
         {/* Best Selling Products Slider Section below Details */}
-        <section className="pt-6">
+        <section className="pt-2">
           <BestSellingSlider products={productsData} />
+        </section>
+
+        {/* Trust Badges Bar (100% Money back | Non-contact shipping | Fast delivery) */}
+        <section className="w-full">
+          <TrustBadgesBar />
         </section>
 
       </div>

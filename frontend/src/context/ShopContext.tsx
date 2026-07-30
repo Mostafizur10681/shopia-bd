@@ -2,9 +2,22 @@
 
 import React, { createContext, useContext, useState } from "react";
 
+export interface UserProfile {
+  name: string;
+  email: string;
+  phone: string;
+  address: string;
+  avatar?: string;
+}
+
 interface ShopContextType {
   cart: any[];
   wishlist: any[];
+  user: UserProfile | null;
+  login: (userData: UserProfile) => void;
+  logout: () => void;
+  updateProfile: (updatedData: Partial<UserProfile>) => void;
+  deleteAccount: () => void;
   addToCart: (product: any, quantity?: number) => void;
   updateQuantity: (productId: number | string, delta: number) => void;
   removeFromCart: (productId: number | string) => void;
@@ -23,8 +36,29 @@ const ShopContext = createContext<ShopContextType | undefined>(undefined);
 export function ShopProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<any[]>([]);
   const [wishlist, setWishlist] = useState<any[]>([]);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [quickViewProduct, setQuickViewProduct] = useState<any | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  const login = (userData: UserProfile) => {
+    setUser(userData);
+    showToast(`Welcome back, ${userData.name}!`);
+  };
+
+  const logout = () => {
+    setUser(null);
+    showToast("Logged out successfully.");
+  };
+
+  const updateProfile = (updatedData: Partial<UserProfile>) => {
+    setUser((prev) => (prev ? { ...prev, ...updatedData } : null));
+    showToast("Profile updated successfully!");
+  };
+
+  const deleteAccount = () => {
+    setUser(null);
+    showToast("Your account has been deleted.");
+  };
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -97,6 +131,11 @@ export function ShopProvider({ children }: { children: React.ReactNode }) {
       value={{
         cart,
         wishlist,
+        user,
+        login,
+        logout,
+        updateProfile,
+        deleteAccount,
         addToCart,
         updateQuantity,
         removeFromCart,

@@ -70,8 +70,8 @@ export function OrganicFoodSection() {
     <div className="w-full max-w-7xl mx-auto px-4 py-8">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-0 border border-slate-200/80 rounded-2xl overflow-hidden bg-white shadow-sm">
         
-        {/* Left Side: 6-Product 3x2 Grid Container (Col 8) */}
-        <div className="lg:col-span-8 bg-white grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 divide-x divide-y divide-slate-100 order-2 lg:order-1">
+        {/* Left Side: 6-Product Grid Container (Col 8) */}
+        <div className="lg:col-span-8 bg-white grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 divide-y sm:divide-y-0 sm:divide-x divide-slate-100 order-2 lg:order-1">
           {organicProducts.map((prod) => (
             <div 
               key={prod.id} 
@@ -168,7 +168,7 @@ export function OrganicFoodSection() {
         </div>
 
         {/* Right Side: Deep Navy Banner Box (Col 4) */}
-        <div className="lg:col-span-4 bg-[#1b2b48] p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden min-h-[440px] order-1 lg:order-2 text-center">
+        <div className="lg:col-span-4 bg-[#0B3B82] p-8 sm:p-10 flex flex-col justify-between relative overflow-hidden min-h-[440px] order-1 lg:order-2 text-center">
           {/* Subtle background circular pattern design */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[500px] border border-white/5 rounded-full pointer-events-none" />
 
