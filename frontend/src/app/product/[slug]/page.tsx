@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
@@ -30,14 +30,60 @@ export default function ProductDetailsPage() {
 
   const slugParam = params?.slug as string;
 
-  // Find matching product by slug or id
-  const product = productsData.find(
+  // Local state for dynamic API loaded product & related items
+  const [apiProduct, setApiProduct] = useState<any>(null);
+  const [apiRelated, setApiRelated] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!slugParam) return;
+    fetch(`http-[#0b3b82]-replace-api`) // standard fallback
+    fetch(`http://127.0.0.1:8000/api/v1/products/${slugParam}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.status === "success" && data?.product) {
+          const p = data.product;
+          setApiProduct({
+            id: p.id.toString(),
+            name: p.name,
+            slug: p.slug,
+            category: p.category?.name || "Organic Food",
+            price: parseFloat(p.price),
+            originalPrice: p.original_price ? parseFloat(p.original_price) : null,
+            stockStatus: p.stock > 0 ? "In Stock" : "Out of Stock",
+            mainImage: p.main_image || "/prod_honey.png",
+            description: p.description || p.short_description || "",
+            rating: p.rating ? parseFloat(p.rating) : 4.9,
+            reviewsCount: p.reviews_count || 38
+          });
+
+          if (data.related_products && Array.isArray(data.related_products)) {
+            setApiRelated(data.related_products.map((rp: any) => ({
+              id: rp.id.toString(),
+              name: rp.name,
+              slug: rp.slug,
+              category: rp.category?.name || "Organic Food",
+              price: parseFloat(rp.price),
+              originalPrice: rp.original_price ? parseFloat(rp.original_price) : null,
+              mainImage: rp.main_image || "/prod_maca.png",
+              rating: rp.rating ? parseFloat(rp.rating) : 4.9,
+              reviewsCount: rp.reviews_count || 24
+            })));
+          }
+        }
+      })
+      .catch(() => {});
+  }, [slugParam]);
+
+  // Find matching product fallback
+  const fallbackProduct = productsData.find(
     (p) => p.slug === slugParam || p.id === slugParam
-  ) || productsData[0]; // Fallback to first item if not found
+  ) || productsData[0];
+
+  const product = apiProduct || fallbackProduct;
 
   // Related Products (excluding current product)
-  const relatedProducts = productsData
-    .filter((p) => p.id !== product.id && (p.category === product.category || p.brand === product.brand))
+  const relatedProducts = apiRelated.length > 0 ? apiRelated : productsData
+    .filter((p) => p.id !== product.id && (p.category === product.category || (p as any).brand === (product as any).brand))
     .slice(0, 4);
 
   const [quantity, setQuantity] = useState(1);
@@ -141,7 +187,7 @@ export default function ProductDetailsPage() {
 
               {/* Quick Overview */}
               <p className="text-slate-600 text-xs sm:text-sm leading-relaxed">
-                Authentic {product.name} imported and verified for purity. Guaranteed quality, long shelf life, and non-contact delivery across Bangladesh.
+                {product.description || `Authentic ${product.name} imported and verified for purity. Guaranteed quality, long shelf life, and non-contact delivery across Bangladesh.`}
               </p>
 
               {/* Quantity & CTA Buttons */}

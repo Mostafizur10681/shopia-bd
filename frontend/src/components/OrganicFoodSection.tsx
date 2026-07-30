@@ -86,7 +86,7 @@ export function OrganicFoodSection() {
                     </span>
                   )}
 
-                  <Link href={`/product/${prod.slug || prod.id}`} className="relative w-full h-full block">
+                  <Link href={`/product/${(prod as any).slug || prod.id}`} className="relative w-full h-full block">
                     <Image 
                       src={prod.mainImage}
                       alt={prod.name}
@@ -135,7 +135,7 @@ export function OrganicFoodSection() {
                 </div>
 
                 {/* Product Title */}
-                <Link href={`/product/${prod.slug || prod.id}`}>
+                <Link href={`/product/${(prod as any).slug || prod.id}`}>
                   <h3 className="font-medium text-slate-700 text-xs line-clamp-2 hover:text-[#0b3b82] transition leading-relaxed min-h-[36px] mb-3">
                     {prod.name}
                   </h3>

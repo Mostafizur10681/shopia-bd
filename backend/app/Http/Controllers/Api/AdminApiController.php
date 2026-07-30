@@ -136,6 +136,39 @@ class AdminApiController extends Controller
         return response()->json(['status' => 'success', 'category' => $category]);
     }
 
+    // Public Product Endpoints
+    public function publicProducts()
+    {
+        return response()->json([
+            'status' => 'success',
+            'products' => Product::with('category')->latest()->get()
+        ]);
+    }
+
+    public function getProductBySlug($slug)
+    {
+        $product = Product::with('category')->where('slug', $slug)->first();
+
+        if (!$product) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Product not found'
+            ], 404);
+        }
+
+        // Fetch related products in same category
+        $related = Product::where('id', '!=', $product->id)
+            ->where('category_id', $product->category_id)
+            ->take(4)
+            ->get();
+
+        return response()->json([
+            'status' => 'success',
+            'product' => $product,
+            'related_products' => $related
+        ]);
+    }
+
     // Product Endpoints
     public function products()
     {
@@ -156,7 +189,34 @@ class AdminApiController extends Controller
         ]);
 
         $product = Product::create($validated);
+        return response()->json(['status' => 'success', 'product' => $product], 201);
+    }
+
+    public function updateProduct(Request $request, $id)
+    {
+        $product = Product::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'slug' => 'required|string|unique:products,slug,' . $id,
+            'category_id' => 'nullable|exists:categories,id',
+            'price' => 'required|numeric',
+            'original_price' => 'nullable|numeric',
+            'stock' => 'required|integer',
+            'description' => 'nullable|string',
+            'main_image' => 'nullable|string',
+        ]);
+
+        $product->update($validated);
         return response()->json(['status' => 'success', 'product' => $product]);
+    }
+
+    public function deleteProduct($id)
+    {
+        $product = Product::findOrFail($id);
+        $product->delete();
+
+        return response()->json(['status' => 'success', 'message' => 'Product deleted successfully']);
     }
 
     // Order Endpoints

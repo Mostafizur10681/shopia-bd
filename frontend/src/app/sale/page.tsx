@@ -12,7 +12,7 @@ export default function SalePage() {
   const [sortBy, setSortBy] = useState("discount-high");
 
   // Sale Products
-  const saleProducts = productsData.filter((p) => p.isSale || p.discountPercentage);
+  const saleProducts = productsData.filter((p: any) => p.isSale || p.discountPercentage);
 
   const sortedProducts = [...saleProducts].sort((a, b) => {
     if (sortBy === "discount-high") {

@@ -93,6 +93,26 @@ class DatabaseSeeder extends Seeder
             ]
         );
 
+        $prodHoney = Product::firstOrCreate(
+            ['slug' => 'pure-sundarban-wild-honey-500g'],
+            [
+                'name' => 'Pure Sundarban Wild Honey 500g',
+                'sku' => 'SND-HNY-500G',
+                'category_id' => $catOrganic->id,
+                'price' => 850.00,
+                'original_price' => 1100.00,
+                'discount_percentage' => 23,
+                'stock' => 60,
+                'short_description' => '100% Raw natural raw honey harvested directly from Sundarban mangroves.',
+                'description' => 'Unfiltered and unpasteurized 100% wild raw honey collected from Sundarban mangrove forests. Packed with natural antioxidants, enzymes, pollen, and vital minerals.',
+                'main_image' => '/prod_honey.png',
+                'is_bestseller' => true,
+                'is_new' => true,
+                'rating' => 4.95,
+                'reviews_count' => 38,
+            ]
+        );
+
         // 5. Create Sample Orders
         $order1 = Order::firstOrCreate(
             ['order_number' => 'ORD-1001'],

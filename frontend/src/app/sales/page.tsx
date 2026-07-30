@@ -73,9 +73,9 @@ export default function SalesPage() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {saleProducts.map((product) => {
-              const discountPercent = Math.round(
-                ((product.originalPrice - product.price) / product.originalPrice) * 100
-              );
+              const discountPercent = product.originalPrice
+                ? Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)
+                : 0;
 
               return (
                 <div
