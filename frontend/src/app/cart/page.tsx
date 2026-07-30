@@ -229,7 +229,7 @@ export default function CartPage() {
             <div className="space-y-3 pt-2">
               <Link 
                 href="/checkout" 
-                className="w-full bg-[#ff8c00] hover:bg-[#e07b00] text-white font-bold text-sm py-3.5 px-4 rounded-full shadow-lg hover:shadow-xl transition-all text-center block"
+                className="w-full bg-[#0b3b82] hover:bg-[#b30047] text-white font-bold text-sm py-3.5 px-4 rounded-full shadow-lg hover:shadow-xl transition-all text-center block"
               >
                 Proceed to checkout
               </Link>

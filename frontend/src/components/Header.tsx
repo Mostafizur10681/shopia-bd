@@ -270,14 +270,14 @@ export function Header() {
                     <div className="space-y-2.5 pt-1">
                       <Link
                         href="/cart"
-                        className="w-full border-2 border-[#ff8c00] text-[#ff8c00] hover:bg-[#ff8c00] hover:text-white font-bold text-xs py-2.5 rounded-full transition-all duration-200 text-center block"
+                        className="w-full border-2 border-[#0b3b82] text-[#0b3b82] hover:bg-[#0b3b82] hover:text-white font-bold text-xs py-2.5 rounded-full transition-all duration-200 text-center block"
                       >
                         View Cart
                       </Link>
 
                       <Link
                         href="/checkout"
-                        className="w-full bg-[#ff8c00] hover:bg-[#e07b00] text-white font-bold text-xs py-2.5 rounded-full transition-all duration-200 shadow-md text-center block"
+                        className="w-full bg-[#0b3b82] hover:bg-[#b30047] text-white font-bold text-xs py-2.5 rounded-full transition-all duration-200 shadow-md text-center block"
                       >
                         Checkout
                       </Link>
