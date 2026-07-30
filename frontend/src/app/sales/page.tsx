@@ -11,7 +11,7 @@ export default function SalesPage() {
   const { addToCart, addToWishlist, setQuickViewProduct } = useShop();
 
   // Filter products that are on sale (where price is less than original price, or top discounted items)
-  const saleProducts = productsData.filter((p) => p.originalPrice > p.price);
+  const saleProducts = productsData.filter((p) => p.originalPrice && p.originalPrice > p.price);
 
   return (
     <div className="bg-slate-50 min-h-screen font-sans space-y-16 pb-20">
@@ -108,9 +108,9 @@ export default function SalesPage() {
                   </div>
 
                   {/* Product Image */}
-                  <div 
-                    onClick={() => setQuickViewProduct(product)}
-                    className="relative w-full h-48 bg-slate-50 rounded-xl overflow-hidden cursor-pointer flex items-center justify-center p-4 mb-4"
+                  <Link 
+                    href={`/product/${product.slug || product.id}`}
+                    className="relative w-full h-48 bg-slate-50 rounded-xl overflow-hidden cursor-pointer flex items-center justify-center p-4 mb-4 block"
                   >
                     <Image
                       src={product.mainImage}
@@ -119,19 +119,20 @@ export default function SalesPage() {
                       sizes="(max-width: 768px) 100vw, 25vw"
                       className="object-contain group-hover:scale-105 transition duration-300"
                     />
-                  </div>
+                  </Link>
 
                   {/* Product Details */}
                   <div className="space-y-2">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider block">
                       {product.category}
                     </span>
-                    <h3
-                      onClick={() => setQuickViewProduct(product)}
-                      className="font-bold text-slate-800 text-sm line-clamp-2 cursor-pointer hover:text-[#0b3b82] transition"
-                    >
-                      {product.name}
-                    </h3>
+                    <Link href={`/product/${product.slug || product.id}`}>
+                      <h3
+                        className="font-bold text-slate-800 text-sm line-clamp-2 cursor-pointer hover:text-[#0b3b82] transition"
+                      >
+                        {product.name}
+                      </h3>
+                    </Link>
 
                     {/* Price & Cart Button Row */}
                     <div className="pt-2 flex items-center justify-between gap-2 border-t border-slate-100">
@@ -139,9 +140,11 @@ export default function SalesPage() {
                         <div className="text-base font-extrabold text-[#0b3b82]">
                           ৳ {product.price.toLocaleString()}
                         </div>
-                        <div className="text-xs text-slate-400 line-through">
-                          ৳ {product.originalPrice.toLocaleString()}
-                        </div>
+                        {product.originalPrice && (
+                          <div className="text-xs text-slate-400 line-through">
+                            ৳ {product.originalPrice.toLocaleString()}
+                          </div>
+                        )}
                       </div>
 
                       <button

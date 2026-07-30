@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight, Star, Heart, Eye, ShoppingBag } from "lucide-react";
 import { useShop } from "@/context/ShopContext";
 
@@ -99,13 +100,15 @@ export function LatestProductsSlider({ products }: { products: any[] }) {
               <div>
                 {/* Image Container with Right-Side Hover Action Icons */}
                 <div className="w-full h-44 bg-white rounded-md flex items-center justify-center overflow-hidden relative mb-3 group-hover/card:scale-105 transition-transform duration-300">
-                  <Image 
-                    src={prod.mainImage} 
-                    alt={prod.name}
-                    fill
-                    sizes="(max-width: 768px) 50vw, 20vw"
-                    className="object-contain p-2"
-                  />
+                  <Link href={`/product/${prod.slug || prod.id}`} className="relative w-full h-full block">
+                    <Image 
+                      src={prod.mainImage} 
+                      alt={prod.name}
+                      fill
+                      sizes="(max-width: 768px) 50vw, 20vw"
+                      className="object-contain p-2"
+                    />
+                  </Link>
 
                   {/* Vertical Hover Action Bar on the Right Side */}
                   <div className="absolute top-2 right-2 flex flex-col gap-2 z-20 opacity-0 group-hover/card:opacity-100 transition-all duration-300 translate-x-3 group-hover/card:translate-x-0">
@@ -146,9 +149,11 @@ export function LatestProductsSlider({ products }: { products: any[] }) {
                 </div>
 
                 {/* Title */}
-                <h3 className="font-semibold text-slate-800 text-xs line-clamp-2 hover:text-[#0b3b82] transition leading-snug mb-2 min-h-[32px]">
-                  {prod.name}
-                </h3>
+                <Link href={`/product/${prod.slug || prod.id}`}>
+                  <h3 className="font-semibold text-slate-800 text-xs line-clamp-2 hover:text-[#0b3b82] transition leading-snug mb-2 min-h-[32px]">
+                    {prod.name}
+                  </h3>
+                </Link>
               </div>
 
               {/* Price & Star Rating */}

@@ -2,6 +2,7 @@
 
 import React from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Star, Heart, Eye, ShoppingBag } from "lucide-react";
 import { useShop } from "@/context/ShopContext";
 
@@ -85,13 +86,15 @@ export function OrganicFoodSection() {
                     </span>
                   )}
 
-                  <Image 
-                    src={prod.mainImage}
-                    alt={prod.name}
-                    fill
-                    sizes="(max-width: 768px) 50vw, 20vw"
-                    className="object-contain p-2 group-hover/org:scale-105 transition-transform duration-300"
-                  />
+                  <Link href={`/product/${prod.slug || prod.id}`} className="relative w-full h-full block">
+                    <Image 
+                      src={prod.mainImage}
+                      alt={prod.name}
+                      fill
+                      sizes="(max-width: 768px) 50vw, 20vw"
+                      className="object-contain p-2 group-hover/org:scale-105 transition-transform duration-300"
+                    />
+                  </Link>
 
                   {/* Vertical Action Bar on Hover (Top Right) */}
                   <div className="absolute top-2 right-2 flex flex-col gap-2 z-20 opacity-0 group-hover/org:opacity-100 transition-all duration-300 translate-x-3 group-hover/org:translate-x-0">
@@ -132,9 +135,11 @@ export function OrganicFoodSection() {
                 </div>
 
                 {/* Product Title */}
-                <h3 className="font-medium text-slate-700 text-xs line-clamp-2 hover:text-[#0b3b82] transition leading-relaxed min-h-[36px] mb-3">
-                  {prod.name}
-                </h3>
+                <Link href={`/product/${prod.slug || prod.id}`}>
+                  <h3 className="font-medium text-slate-700 text-xs line-clamp-2 hover:text-[#0b3b82] transition leading-relaxed min-h-[36px] mb-3">
+                    {prod.name}
+                  </h3>
+                </Link>
               </div>
 
               {/* Price & Rating */}

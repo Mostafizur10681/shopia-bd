@@ -71,7 +71,6 @@ export default function DeliveryInformationPage() {
               <thead className="bg-[#0b3b82] text-white font-bold">
                 <tr>
                   <th className="py-4 px-4 sm:px-6">Destination Zone</th>
-                  <th className="py-4 px-4 sm:px-6">Estimated Delivery Time</th>
                   <th className="py-4 px-4 sm:px-6 text-right">Shipping Fee</th>
                 </tr>
               </thead>
@@ -79,7 +78,6 @@ export default function DeliveryInformationPage() {
                 {deliveryRates.map((rate, idx) => (
                   <tr key={idx} className="hover:bg-slate-50 transition">
                     <td className="py-4.5 px-4 sm:px-6 font-bold text-slate-800">{rate.location}</td>
-                    <td className="py-4.5 px-4 sm:px-6">{rate.time}</td>
                     <td className="py-4.5 px-4 sm:px-6 text-right font-black text-lg text-[#ff8c00]">{rate.rate}</td>
                   </tr>
                 ))}
