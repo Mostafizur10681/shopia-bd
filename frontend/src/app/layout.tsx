@@ -6,6 +6,7 @@ import { Footer } from "@/components/Footer";
 import { ShopProvider } from "@/context/ShopContext";
 import { QuickViewModal } from "@/components/QuickViewModal";
 import { NotificationToast } from "@/components/NotificationToast";
+import { ScrollToTopButton } from "@/components/ScrollToTopButton";
 
 export default function RootLayout({
   children,
@@ -23,6 +24,7 @@ export default function RootLayout({
           <Footer />
           <QuickViewModal />
           <NotificationToast />
+          <ScrollToTopButton />
         </ShopProvider>
       </body>
     </html>
