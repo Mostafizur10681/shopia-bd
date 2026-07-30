@@ -1,134 +1,144 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
-import { Phone, Mail, MapPin, CreditCard, ShieldCheck, Share2, Globe, MessageSquare } from "lucide-react";
+import { Phone, Mail } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="bg-slate-950 text-slate-400 text-sm mt-16 border-t border-slate-800">
-      {/* Top Banner Feature Trust Badges */}
-      <div className="border-b border-slate-800 py-8 bg-slate-900/50">
-        <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800">
-            <div className="w-12 h-12 bg-rose-600/10 text-rose-500 rounded-full flex items-center justify-center font-bold text-xl">
-              🚚
-            </div>
-            <div>
-              <h4 className="font-bold text-white">Fast Nationwide Delivery</h4>
-              <p className="text-xs text-slate-400">Cash on delivery all over Bangladesh</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800">
-            <div className="w-12 h-12 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center font-bold text-xl">
-              🛡️
-            </div>
-            <div>
-              <h4 className="font-bold text-white">100% Authentic Products</h4>
-              <p className="text-xs text-slate-400">Directly imported & original items</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800">
-            <div className="w-12 h-12 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center font-bold text-xl">
-              💳
-            </div>
-            <div>
-              <h4 className="font-bold text-white">Secure Payments</h4>
-              <p className="text-xs text-slate-400">bKash, Nagad, SSLCommerz & Cards</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-900 border border-slate-800">
-            <div className="w-12 h-12 bg-blue-500/10 text-blue-500 rounded-full flex items-center justify-center font-bold text-xl">
-              🎧
-            </div>
-            <div>
-              <h4 className="font-bold text-white">24/7 Dedicated Support</h4>
-              <p className="text-xs text-slate-400">Call us anytime for order support</p>
-            </div>
-          </div>
-        </div>
-      </div>
+    <footer className="bg-white text-slate-600 font-sans border-t border-slate-200/80 pt-12 pb-8 text-xs sm:text-sm">
+      <div className="max-w-7xl mx-auto px-4">
+        
+        {/* Main 5-Column Grid Layout */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 pb-10 border-b border-slate-100">
+          
+          {/* Col 1: Brand & Address (Col 3) */}
+          <div className="md:col-span-3 space-y-4 pr-4">
+            <Link href="/" className="inline-block">
+              <span className="text-3xl font-black italic tracking-tighter text-[#b30047]">
+                S<span className="text-[#e60000]">HOPIA</span>
+              </span>
+            </Link>
 
-      <div className="max-w-7xl mx-auto px-4 py-12 grid grid-cols-1 md:grid-cols-5 gap-8">
-        {/* Col 1 */}
-        <div className="md:col-span-2 space-y-4">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-tr from-rose-600 to-rose-500 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg">
-              S
+            <div className="space-y-1 text-slate-500 text-xs leading-relaxed">
+              <p>41/1, Sher-E-Bangla Rd,</p>
+              <p>Mohammadpur, Dhaka 1207</p>
+              <button type="button" className="text-slate-500 underline hover:text-[#0b3b82] transition font-medium">
+                Show on map
+              </button>
             </div>
-            <span className="text-2xl font-black tracking-tight text-white">Shopia<span className="text-rose-600">BD</span></span>
+
+            {/* Social Icons Row */}
+            <div className="flex items-center gap-3 text-slate-600 pt-2">
+              <a href="#" className="hover:text-[#0b3b82] transition p-1" aria-label="Facebook">
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>
+              </a>
+              <a href="#" className="hover:text-[#0b3b82] transition p-1" aria-label="Instagram">
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/></svg>
+              </a>
+              <a href="#" className="hover:text-[#0b3b82] transition p-1" aria-label="Youtube">
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M19.615 3.184c-3.604-.246-11.631-.245-15.23 0-3.897.266-4.356 2.62-4.385 8.816.029 6.185.484 8.549 4.385 8.816 3.6.245 11.626.246 15.23 0 3.897-.266 4.356-2.62 4.385-8.816-.029-6.185-.484-8.549-4.385-8.816zm-10.615 12.816v-8l8 3.993-8 4.007z"/></svg>
+              </a>
+              <a href="#" className="hover:text-[#0b3b82] transition p-1 font-bold text-sm" aria-label="Pinterest">
+                P
+              </a>
+              <a href="#" className="hover:text-[#0b3b82] transition p-1" aria-label="Linkedin">
+                <svg className="w-4 h-4 fill-current" viewBox="0 0 24 24"><path d="M19 0h-14c-2.761 0-5 2.239-5 5v14c0 2.761 2.239 5 5 5h14c2.762 0 5-2.239 5-5v-14c0-2.239-2.238-5-5-5zm-11 19h-3v-11h3v11zm-1.5-12.268c-.966 0-1.75-.79-1.75-1.764s.784-1.764 1.75-1.764 1.75.79 1.75 1.764-.783 1.764-1.75 1.764zm13.5 12.268h-3v-5.604c0-3.368-4-3.113-4 0v5.604h-3v-11h3v1.765c1.396-2.586 7-2.777 7 2.476v6.759z"/></svg>
+              </a>
+            </div>
           </div>
-          <p className="text-slate-400 text-sm leading-relaxed pr-4">
-            ShopiaBD is your premier online shopping destination in Bangladesh. Bringing you top tier electronics, gadgets, fashion, and lifestyle products with unmatched quality and service.
+
+          {/* Col 2: Need Help Hotline & Hours (Col 4 with left border) */}
+          <div className="md:col-span-4 md:border-l border-slate-100 md:pl-8 space-y-4">
+            <h3 className="font-bold text-slate-800 text-sm">Need help</h3>
+
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-[#0b3b82]">
+                <Phone className="w-5 h-5 text-amber-500 shrink-0" />
+                <span className="text-xl font-extrabold tracking-tight">01681-135030</span>
+              </div>
+
+              <div className="text-[11px] text-slate-400 space-y-0.5 pl-7">
+                <p>Saturday- Thursday: 9:00am-10:00pm</p>
+                <p>Friday: 15:00pm – 11:00pm</p>
+              </div>
+            </div>
+
+            <div className="pt-4 border-t border-slate-100/80 flex items-center gap-2 text-slate-500 text-xs">
+              <Mail className="w-4 h-4 text-[#0b3b82]" />
+              <a href="mailto:info@shopiabd.com" className="hover:text-[#0b3b82] transition">
+                info@shopiabd.com
+              </a>
+            </div>
+          </div>
+
+          {/* Col 3: Information Links */}
+          <div className="md:col-span-2 space-y-3">
+            <h3 className="font-bold text-slate-800 text-sm">Information</h3>
+            <ul className="space-y-2 text-xs text-slate-500">
+              <li><Link href="/about" className="hover:text-[#0b3b82] transition">About us</Link></li>
+              <li><Link href="/delivery" className="hover:text-[#0b3b82] transition">Delivery information</Link></li>
+              <li><Link href="/privacy" className="hover:text-[#0b3b82] transition">Privacy Policy</Link></li>
+              <li><Link href="/sales" className="hover:text-[#0b3b82] transition">Sales</Link></li>
+              <li><Link href="/terms" className="hover:text-[#0b3b82] transition">Terms &amp; Conditions</Link></li>
+            </ul>
+          </div>
+
+          {/* Col 4: Account Links */}
+          <div className="md:col-span-2 space-y-3">
+            <h3 className="font-bold text-slate-800 text-sm">Account</h3>
+            <ul className="space-y-2 text-xs text-slate-500">
+              <li><Link href="/account" className="hover:text-[#0b3b82] transition">My account</Link></li>
+              <li><Link href="/orders" className="hover:text-[#0b3b82] transition">My orders</Link></li>
+              <li><Link href="/returns" className="hover:text-[#0b3b82] transition">Returns</Link></li>
+              <li><Link href="/shipping" className="hover:text-[#0b3b82] transition">Shipping</Link></li>
+              <li><Link href="/wishlist" className="hover:text-[#0b3b82] transition">Wishlist</Link></li>
+            </ul>
+          </div>
+
+          {/* Col 5: Store Links */}
+          <div className="md:col-span-1 space-y-3">
+            <h3 className="font-bold text-slate-800 text-sm">Store</h3>
+            <ul className="space-y-2 text-xs text-slate-500">
+              <li><Link href="/affiliate" className="hover:text-[#0b3b82] transition">Affiliate</Link></li>
+              <li><Link href="/bestsellers" className="hover:text-[#0b3b82] transition">Bestsellers</Link></li>
+              <li><Link href="/discount" className="hover:text-[#0b3b82] transition">Discount</Link></li>
+              <li><Link href="/latest" className="hover:text-[#0b3b82] transition">Latest products</Link></li>
+              <li><Link href="/sale" className="hover:text-[#0b3b82] transition">Sale</Link></li>
+            </ul>
+          </div>
+
+        </div>
+
+        {/* Bottom Bar: Copyright & Payment Logos */}
+        <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          <p className="text-slate-500">
+            Copyright © {new Date().getFullYear()} Shopia. All Rights Reserved
           </p>
-          <div className="flex items-center gap-3 pt-2">
-            <a href="#" className="w-9 h-9 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 hover:bg-rose-600 hover:text-white transition">
-              <Share2 className="w-4 h-4" />
-            </a>
-            <a href="#" className="w-9 h-9 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 hover:bg-rose-600 hover:text-white transition">
-              <Globe className="w-4 h-4" />
-            </a>
-            <a href="#" className="w-9 h-9 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-300 hover:bg-rose-600 hover:text-white transition">
-              <MessageSquare className="w-4 h-4" />
-            </a>
+
+          {/* Payment Method Badges (bKash, Rocket, Nagad, Visa, Mastercard, Amex) */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="px-2 py-1 bg-pink-100 text-pink-700 font-black rounded text-[10px] uppercase border border-pink-200">
+              bKash
+            </span>
+            <span className="px-2 py-1 bg-purple-100 text-purple-700 font-black rounded text-[10px] uppercase border border-purple-200">
+              Rocket
+            </span>
+            <span className="px-2 py-1 bg-orange-100 text-orange-700 font-black rounded text-[10px] uppercase border border-orange-200">
+              Nagad
+            </span>
+            <span className="px-2 py-1 bg-blue-100 text-blue-800 font-black rounded text-[10px] italic uppercase border border-blue-200">
+              VISA
+            </span>
+            <span className="px-2 py-1 bg-red-100 text-red-700 font-black rounded text-[10px] uppercase border border-red-200">
+              MasterCard
+            </span>
+            <span className="px-2 py-1 bg-cyan-100 text-cyan-800 font-black rounded text-[10px] uppercase border border-cyan-200">
+              AMEX
+            </span>
           </div>
         </div>
 
-        {/* Col 2 */}
-        <div>
-          <h3 className="font-bold text-white text-base mb-4 border-l-2 border-rose-500 pl-3">Quick Links</h3>
-          <ul className="space-y-2.5">
-            <li><Link href="/about" className="hover:text-rose-400 transition">About Us</Link></li>
-            <li><Link href="/contact" className="hover:text-rose-400 transition">Contact Us</Link></li>
-            <li><Link href="/blogs" className="hover:text-rose-400 transition">Latest News & Blogs</Link></li>
-            <li><Link href="/terms" className="hover:text-rose-400 transition">Terms & Conditions</Link></li>
-            <li><Link href="/privacy" className="hover:text-rose-400 transition">Privacy Policy</Link></li>
-          </ul>
-        </div>
-
-        {/* Col 3 */}
-        <div>
-          <h3 className="font-bold text-white text-base mb-4 border-l-2 border-rose-500 pl-3">Customer Service</h3>
-          <ul className="space-y-2.5">
-            <li><Link href="/faq" className="hover:text-rose-400 transition">FAQ & Help</Link></li>
-            <li><Link href="/shipping" className="hover:text-rose-400 transition">Shipping Policy</Link></li>
-            <li><Link href="/return-policy" className="hover:text-rose-400 transition">Returns & Exchange</Link></li>
-            <li><Link href="/track-order" className="hover:text-rose-400 transition">Order Tracking</Link></li>
-            <li><Link href="/warranty" className="hover:text-rose-400 transition">Warranty Info</Link></li>
-          </ul>
-        </div>
-
-        {/* Col 4 */}
-        <div>
-          <h3 className="font-bold text-white text-base mb-4 border-l-2 border-rose-500 pl-3">Contact Us</h3>
-          <ul className="space-y-3">
-            <li className="flex items-start gap-3">
-              <MapPin className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-              <span>Dhaka, Bangladesh</span>
-            </li>
-            <li className="flex items-center gap-3">
-              <Phone className="w-5 h-5 text-rose-500 shrink-0" />
-              <span>+880 1700-000000</span>
-            </li>
-            <li className="flex items-center gap-3">
-              <Mail className="w-5 h-5 text-rose-500 shrink-0" />
-              <span>support@shopiabd.com</span>
-            </li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="border-t border-slate-900 py-6 bg-slate-950">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col md:flex-row items-center justify-between gap-4 text-xs">
-          <p>© 2026 ShopiaBD. All Rights Reserved.</p>
-          <div className="flex items-center gap-4">
-            <span>Supported Payment Methods:</span>
-            <div className="flex items-center gap-2 font-bold text-slate-300">
-              <span className="bg-slate-900 px-2 py-1 rounded border border-slate-800 text-pink-500">bKash</span>
-              <span className="bg-slate-900 px-2 py-1 rounded border border-slate-800 text-orange-500">Nagad</span>
-              <span className="bg-slate-900 px-2 py-1 rounded border border-slate-800 text-violet-400">SSLCommerz</span>
-              <span className="bg-slate-900 px-2 py-1 rounded border border-slate-800 text-emerald-400">COD</span>
-            </div>
-          </div>
-        </div>
       </div>
     </footer>
   );
