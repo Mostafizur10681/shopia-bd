@@ -114,7 +114,7 @@ export function Footer() {
         {/* Bottom Bar: Copyright & Payment Logos */}
         <div className="pt-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-blue-200/70">
           <p>
-            Copyright © {new Date().getFullYear()} Shopia. All Rights Reserved
+            Copyright © 2026 Shopia. All Rights Reserved
           </p>
 
           {/* Payment Method Badges (bKash, Rocket, Nagad, Visa, Mastercard, Amex) */}
