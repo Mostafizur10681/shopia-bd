@@ -77,6 +77,8 @@ export function Footer() {
             <h3 className="font-bold text-white text-sm">Information</h3>
             <ul className="space-y-2 text-xs text-blue-100/80">
               <li><Link href="/about" className="hover:text-amber-300 transition">About us</Link></li>
+              <li><Link href="/blog" className="hover:text-amber-300 transition">Blog &amp; Journal</Link></li>
+              <li><Link href="/faq" className="hover:text-amber-300 transition">FAQ &amp; Support</Link></li>
               <li><Link href="/delivery" className="hover:text-amber-300 transition">Delivery information</Link></li>
               <li><Link href="/privacy" className="hover:text-amber-300 transition">Privacy Policy</Link></li>
               <li><Link href="/sales" className="hover:text-amber-300 transition">Sales</Link></li>
@@ -100,7 +102,6 @@ export function Footer() {
           <div className="md:col-span-1 space-y-3">
             <h3 className="font-bold text-white text-sm">Store</h3>
             <ul className="space-y-2 text-xs text-blue-100/80">
-              <li><Link href="/affiliate" className="hover:text-amber-300 transition">Affiliate</Link></li>
               <li><Link href="/bestsellers" className="hover:text-amber-300 transition">Bestsellers</Link></li>
               <li><Link href="/discount" className="hover:text-amber-300 transition">Discount</Link></li>
               <li><Link href="/latest" className="hover:text-amber-300 transition">Latest products</Link></li>

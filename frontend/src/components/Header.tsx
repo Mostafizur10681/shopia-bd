@@ -364,8 +364,8 @@ export function Header() {
             <Link href="/sales" className="text-rose-600 hover:text-[#b30047] font-bold transition whitespace-nowrap">
               Special Sales 🔥
             </Link>
-            <Link href="/about" className="hover:text-[#b30047] transition whitespace-nowrap">
-              About Us
+            <Link href="/blog" className="hover:text-[#b30047] transition whitespace-nowrap font-bold text-[#0b3b82]">
+              Blog
             </Link>
             <Link href="/delivery" className="hover:text-[#b30047] transition whitespace-nowrap">
               Delivery Info
@@ -435,6 +435,13 @@ export function Header() {
                   className="px-3 py-2.5 rounded-xl hover:bg-slate-50 hover:text-[#0b3b82] transition"
                 >
                   About Us
+                </Link>
+                <Link 
+                  href="/blog" 
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="px-3 py-2.5 rounded-xl hover:bg-slate-50 hover:text-[#0b3b82] transition"
+                >
+                  Blog Journal
                 </Link>
                 <Link 
                   href="/delivery" 
