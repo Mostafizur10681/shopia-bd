@@ -2,14 +2,16 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
-import { Search, Heart, ShoppingCart, User, X, ChevronDown } from "lucide-react";
+import Image from "next/image";
+import { Search, Heart, ShoppingCart, User, X, ChevronDown, Plus, Minus } from "lucide-react";
 import { useShop } from "@/context/ShopContext";
 
 export function Header() {
   const [showTopNotice, setShowTopNotice] = useState(true);
-  const { wishlist, cart } = useShop();
+  const { wishlist, cart, addToCart, updateQuantity, removeFromCart } = useShop();
 
   const totalCartCount = cart.reduce((acc, item) => acc + (item.quantity || 1), 0);
+  const cartSubtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   const totalWishlistCount = wishlist.length;
 
   return (
@@ -76,20 +78,124 @@ export function Header() {
             )}
           </Link>
 
-          {/* Cart Icon with Badge */}
-          <Link href="/cart" className="relative text-amber-500 hover:text-[#b30047] transition">
-            <ShoppingCart className="w-6 h-6 stroke-[1.8]" />
-            {totalCartCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-[#e60000] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center animate-in zoom-in duration-200">
+          {/* Cart Icon with Badge & Hover Dropdown Window */}
+          <div className="relative group py-2">
+            <Link href="/cart" className="relative text-amber-500 hover:text-[#b30047] transition flex items-center">
+              <ShoppingCart className="w-6 h-6 stroke-[1.8]" />
+              <span className="absolute -top-2 -right-2 bg-[#0b3b82] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
                 {totalCartCount}
               </span>
-            )}
-            {totalCartCount === 0 && (
-              <span className="absolute -top-2 -right-2 bg-[#0b3b82] text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                0
-              </span>
-            )}
-          </Link>
+            </Link>
+
+            {/* Hover Cart Popup Window */}
+            <div className="absolute right-0 top-full pt-2 opacity-0 pointer-events-none group-hover:opacity-100 group-hover:pointer-events-auto transition-all duration-300 z-50 w-80 sm:w-96">
+              <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-5 space-y-4 text-slate-800 animate-in fade-in zoom-in-95 duration-200">
+                {cart.length === 0 ? (
+                  <div className="text-center py-6 text-slate-400 space-y-2">
+                    <ShoppingCart className="w-10 h-10 mx-auto opacity-30" />
+                    <p className="text-sm font-semibold">Your cart is currently empty</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Cart Items List */}
+                    <div className="max-h-64 overflow-y-auto divide-y divide-slate-100 pr-1 space-y-3">
+                      {cart.map((item) => (
+                        <div key={item.id} className="pt-3 first:pt-0 flex items-start gap-3 relative">
+                          {/* Item Thumbnail */}
+                          <div className="w-16 h-16 bg-slate-50 border border-slate-100 rounded-xl relative shrink-0 overflow-hidden flex items-center justify-center p-1">
+                            <Image 
+                              src={item.mainImage} 
+                              alt={item.name}
+                              fill
+                              sizes="64px"
+                              className="object-contain"
+                            />
+                          </div>
+
+                          {/* Item Details */}
+                          <div className="flex-1 min-w-0 pr-6 space-y-1.5">
+                            <h4 className="text-xs font-semibold text-[#0b3b82] truncate leading-tight">
+                              {item.name}
+                            </h4>
+
+                            {/* Quantity Controls */}
+                            <div className="inline-flex items-center border border-slate-200 rounded-full bg-slate-100/80 px-2 py-0.5">
+                              <button 
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  updateQuantity(item.id, -1);
+                                }}
+                                className="w-5 h-5 rounded-full text-slate-600 hover:bg-white flex items-center justify-center text-xs transition"
+                              >
+                                <Minus className="w-3 h-3" />
+                              </button>
+                              <span className="w-6 text-center text-xs font-bold text-slate-800">
+                                {item.quantity}
+                              </span>
+                              <button 
+                                type="button"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  updateQuantity(item.id, 1);
+                                }}
+                                className="w-5 h-5 rounded-full text-slate-600 hover:bg-white flex items-center justify-center text-xs transition"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
+                            </div>
+
+                            {/* Price */}
+                            <div className="text-sm font-bold text-[#0b3b82]">
+                              ৳{item.price.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                            </div>
+                          </div>
+
+                          {/* Remove Item Button */}
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              removeFromCart(item.id);
+                            }}
+                            className="absolute top-2 right-0 text-slate-400 hover:text-slate-700 text-sm font-bold p-1 transition"
+                            title="Remove item"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Subtotal Section */}
+                    <div className="pt-3 border-t border-slate-100 flex items-center justify-between font-bold text-sm">
+                      <span className="text-[#0b3b82]">Subtotal :</span>
+                      <span className="text-[#0b3b82] text-base">
+                        ৳{cartSubtotal.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+                      </span>
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="space-y-2.5 pt-1">
+                      <Link 
+                        href="/cart"
+                        className="w-full border-2 border-[#ff8c00] text-[#ff8c00] hover:bg-[#ff8c00] hover:text-white font-bold text-xs py-2.5 rounded-full transition-all duration-200 text-center block"
+                      >
+                        View Cart
+                      </Link>
+
+                      <Link 
+                        href="/checkout"
+                        className="w-full bg-[#ff8c00] hover:bg-[#e07b00] text-white font-bold text-xs py-2.5 rounded-full transition-all duration-200 shadow-md text-center block"
+                      >
+                        Checkout
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -12,27 +12,9 @@ export default function CartPage() {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponApplied, setCouponApplied] = useState(false);
 
-  // Default mock items if cart is empty so user can preview the screenshot design seamlessly
-  const displayCart = cart.length > 0 ? cart : [
-    {
-      id: "demo-1",
-      name: "Accu Check Active Test Strip",
-      price: 1395.00,
-      quantity: 3,
-      mainImage: "https://shopiabd.s3.ap-southeast-1.amazonaws.com/products/4392/10004392_0.png"
-    },
-    {
-      id: "demo-2",
-      name: "Glucoleader Enhance Test Strips",
-      price: 380.00,
-      quantity: 1,
-      mainImage: "https://shopiabd.s3.ap-southeast-1.amazonaws.com/products/4392/10004392_0.png"
-    }
-  ];
-
-  const totalItemsCount = displayCart.reduce((sum, item) => sum + item.quantity, 0);
-  const subtotal = displayCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const flatRateShipment = 60.00;
+  const totalItemsCount = cart.reduce((sum, item) => sum + item.quantity, 0);
+  const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  const flatRateShipment = cart.length > 0 ? 60.00 : 0;
   const grandTotal = Math.max(0, subtotal - couponDiscount + flatRateShipment);
 
   const handleApplyCoupon = (e: React.FormEvent) => {
@@ -80,7 +62,16 @@ export default function CartPage() {
               </div>
 
               {/* Product Rows */}
-              {displayCart.map((item) => (
+              {cart.length === 0 ? (
+                <div className="p-10 text-center text-slate-400 space-y-3">
+                  <ShoppingBag className="w-12 h-12 mx-auto opacity-30 text-[#0b3b82]" />
+                  <p className="text-base font-semibold text-slate-600">Your shopping cart is empty</p>
+                  <Link href="/" className="inline-block text-xs font-bold bg-[#0b3b82] text-white px-5 py-2.5 rounded-full hover:bg-[#b30047] transition">
+                    Explore Products
+                  </Link>
+                </div>
+              ) : (
+                cart.map((item) => (
                 <div key={item.id} className="p-4 sm:p-6 grid grid-cols-1 sm:grid-cols-12 gap-4 items-center transition hover:bg-slate-50/30">
                   
                   {/* Product Details (Col 6) */}
@@ -145,7 +136,7 @@ export default function CartPage() {
                   </div>
 
                 </div>
-              ))}
+              )))}
             </div>
 
             {/* Bottom Action Bar: Coupon & Clear Cart */}
