@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\Order;
 use App\Models\Category;
 use App\Models\SubCategory;
+use App\Models\Review;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -216,6 +217,56 @@ class AdminApiController extends Controller
         $subCategory->delete();
 
         return response()->json(['status' => 'success', 'message' => 'Sub category deleted successfully']);
+    }
+
+    // Review Endpoints
+    public function reviews()
+    {
+        return response()->json(Review::with('product')->latest()->get());
+    }
+
+    public function storeReview(Request $request)
+    {
+        $validated = $request->validate([
+            'customer_name' => 'required|string|max:255',
+            'product_id' => 'nullable|exists:products,id',
+            'comment' => 'required|string',
+            'rating' => 'required|integer|min:1|max:5',
+            'status' => 'nullable|in:Approved,Pending,Rejected',
+            'image' => 'nullable|string',
+        ]);
+
+        if (empty($validated['status'])) {
+            $validated['status'] = 'Pending';
+        }
+
+        $review = Review::create($validated);
+        return response()->json(['status' => 'success', 'review' => $review], 201);
+    }
+
+    public function updateReview(Request $request, $id)
+    {
+        $review = Review::findOrFail($id);
+
+        $validated = $request->validate([
+            'customer_name' => 'required|string|max:255',
+            'product_id' => 'nullable|exists:products,id',
+            'comment' => 'required|string',
+            'rating' => 'required|integer|min:1|max:5',
+            'status' => 'required|in:Approved,Pending,Rejected',
+            'image' => 'nullable|string',
+        ]);
+
+        $review->update($validated);
+        return response()->json(['status' => 'success', 'review' => $review]);
+    }
+
+    public function deleteReview($id)
+    {
+        $review = Review::findOrFail($id);
+        $review->delete();
+
+        return response()->json(['status' => 'success', 'message' => 'Review deleted successfully']);
     }
 
     // Public Product Endpoints

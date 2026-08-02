@@ -32,6 +32,11 @@ Route::prefix('v1')->group(function () {
     Route::put('/sub-categories/{id}', [AdminApiController::class, 'updateSubCategory']);
     Route::delete('/sub-categories/{id}', [AdminApiController::class, 'deleteSubCategory']);
 
+    Route::get('/reviews', [AdminApiController::class, 'reviews']);
+    Route::post('/reviews', [AdminApiController::class, 'storeReview']);
+    Route::put('/reviews/{id}', [AdminApiController::class, 'updateReview']);
+    Route::delete('/reviews/{id}', [AdminApiController::class, 'deleteReview']);
+
     // Protected Admin Routes (Requires Sanctum Bearer Token & Admin Role)
     Route::middleware(['auth:sanctum', \App\Http\Middleware\EnsureAdminUser::class])->group(function () {
         Route::get('/admin/metrics', [AdminApiController::class, 'dashboardMetrics']);
@@ -44,6 +49,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/admin/sub-categories', [AdminApiController::class, 'storeSubCategory']);
         Route::put('/admin/sub-categories/{id}', [AdminApiController::class, 'updateSubCategory']);
         Route::delete('/admin/sub-categories/{id}', [AdminApiController::class, 'deleteSubCategory']);
+
+        Route::get('/admin/reviews', [AdminApiController::class, 'reviews']);
+        Route::post('/admin/reviews', [AdminApiController::class, 'storeReview']);
+        Route::put('/admin/reviews/{id}', [AdminApiController::class, 'updateReview']);
+        Route::delete('/admin/reviews/{id}', [AdminApiController::class, 'deleteReview']);
 
         Route::get('/admin/products', [AdminApiController::class, 'products']);
         Route::post('/admin/products', [AdminApiController::class, 'storeProduct']);
