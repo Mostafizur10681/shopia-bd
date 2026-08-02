@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\Product;
 use App\Models\Order;
 use App\Models\Category;
+use App\Models\SubCategory;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -120,20 +121,101 @@ class AdminApiController extends Controller
     // Category Endpoints
     public function categories()
     {
-        return response()->json(Category::with('children')->get());
+        return response()->json(Category::with(['parent', 'children'])->latest()->get());
     }
 
     public function storeCategory(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|unique:categories,slug',
+            'slug' => 'nullable|string',
             'parent_id' => 'nullable|exists:categories,id',
             'description' => 'nullable|string',
+            'image' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
         ]);
 
+        if (empty($validated['slug'])) {
+            $validated['slug'] = \Illuminate\Support\Str::slug($validated['name']) . '-' . time();
+        }
+
         $category = Category::create($validated);
+        return response()->json(['status' => 'success', 'category' => $category], 201);
+    }
+
+    public function updateCategory(Request $request, $id)
+    {
+        $category = Category::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'slug' => 'nullable|string',
+            'parent_id' => 'nullable|exists:categories,id',
+            'description' => 'nullable|string',
+            'image' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $category->update($validated);
         return response()->json(['status' => 'success', 'category' => $category]);
+    }
+
+    public function deleteCategory($id)
+    {
+        $category = Category::findOrFail($id);
+        $category->delete();
+
+        return response()->json(['status' => 'success', 'message' => 'Category deleted successfully']);
+    }
+
+    // Sub Category Endpoints
+    public function subCategories()
+    {
+        return response()->json(SubCategory::with('category')->latest()->get());
+    }
+
+    public function storeSubCategory(Request $request)
+    {
+        $validated = $request->validate([
+            'category_id' => 'required|exists:categories,id',
+            'name' => 'required|string|max:255',
+            'slug' => 'nullable|string',
+            'description' => 'nullable|string',
+            'image' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        if (empty($validated['slug'])) {
+            $validated['slug'] = \Illuminate\Support\Str::slug($validated['name']) . '-' . time();
+        }
+
+        $subCategory = SubCategory::create($validated);
+        return response()->json(['status' => 'success', 'sub_category' => $subCategory], 201);
+    }
+
+    public function updateSubCategory(Request $request, $id)
+    {
+        $subCategory = SubCategory::findOrFail($id);
+
+        $validated = $request->validate([
+            'category_id' => 'required|exists:categories,id',
+            'name' => 'required|string|max:255',
+            'slug' => 'nullable|string',
+            'description' => 'nullable|string',
+            'image' => 'nullable|string',
+            'is_active' => 'nullable|boolean',
+        ]);
+
+        $subCategory->update($validated);
+        return response()->json(['status' => 'success', 'sub_category' => $subCategory]);
+    }
+
+    public function deleteSubCategory($id)
+    {
+        $subCategory = SubCategory::findOrFail($id);
+        $subCategory->delete();
+
+        return response()->json(['status' => 'success', 'message' => 'Sub category deleted successfully']);
     }
 
     // Public Product Endpoints
