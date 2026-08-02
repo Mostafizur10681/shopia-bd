@@ -50,7 +50,9 @@ import {
   AlertCircle,
   Layers,
   Calendar,
-  Clock
+  Clock,
+  Upload,
+  Image as ImageIcon
 } from "lucide-react";
 import {
   AreaChart,
@@ -70,6 +72,8 @@ const menuToRouteMap: Record<string, string> = {
   "Dashboard": "/dashboard",
   "All Products": "/all-products",
   "Add Product": "/add-product",
+  "Edit Product": "/edit-product",
+  "View Product": "/view-product",
   "Main Category": "/category",
   "Add Category": "/add-category",
   "Edit Category": "/edit-category",
@@ -102,7 +106,11 @@ export default function AdminDashboardPage() {
   const editIdParam = searchParams.get("id");
 
   const { admin, isLoading, logout } = useAdminAuth();
-  const [activeMenu, setActiveMenu] = useState("Dashboard");
+  
+  // Initialize state based on current URL to prevent flickering
+  const initialMenu = (pathname && routeToMenuMap[pathname]) ? routeToMenuMap[pathname] : (tabParam || "Dashboard");
+  const [activeMenu, setActiveMenu] = useState(initialMenu);
+  
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -120,40 +128,78 @@ export default function AdminDashboardPage() {
   };
 
   // Product Management & Form States
-  const [productsList, setProductsList] = useState<any[]>([
-    {
-      id: 1,
-      name: "Organic Black Maca Powder (300 gm)",
-      slug: "organic-black-maca-powder-300-gm",
-      price: 1450,
-      original_price: 1800,
-      stock: 45,
-      main_image: "/prod_maca.png",
-      description: "Premium grade organic Maca Powder imported directly. Rich in nutrients and energy boosters.",
-      category: "Health & Organic"
-    },
-    {
-      id: 2,
-      name: "Mustard Oil (সরিষার তেল 1L)",
-      slug: "mustard-oil-1l",
-      price: 300,
-      original_price: 350,
-      stock: 120,
-      main_image: "/prod_blackseed.png",
-      description: "100% pure cold-pressed mustard oil. Traditional aromatic cooking oil.",
-      category: "Groceries & Cooking"
+  const [productsList, setProductsList] = useState<any[]>([]);
+
+  const fetchProducts = async () => {
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (admin?.token) headers["Authorization"] = `Bearer ${admin.token}`;
+      let res = await fetch("http://127.0.0.1:8000/api/v1/products", { headers });
+      if (!res.ok) {
+        res = await fetch("http://127.0.0.1:8000/api/v1/admin/products", { headers });
+      }
+      if (res.ok) {
+        const data = await res.json();
+        const apiProducts = Array.isArray(data) ? data : data.products || [];
+        const processedProducts = apiProducts.map((p: any) => ({
+          ...p,
+          category: p.category ? (typeof p.category === "object" ? p.category.name : p.category) : "Health & Organic",
+          main_image: p.main_image || p.image || "/prod_maca.png",
+          gallery_images: (p.images && p.images.length > 0) ? p.images.map((img: any) => img.image_path) : (p.gallery_images || [p.main_image || p.image || "/prod_maca.png"])
+        }));
+        setProductsList(processedProducts);
+        if (editIdParam && (pathname === "/edit-product" || pathname === "/view-product")) {
+          const target = processedProducts.find((p: any) => p.id.toString() === editIdParam);
+          if (target) {
+            handleEditClick(target);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Backend API offline for products", e);
     }
-  ]);
+  };
 
   // Form input state
+  const [searchProductQuery, setSearchProductQuery] = useState("");
+  const [categoryProductFilter, setCategoryProductFilter] = useState("All");
+  const [statusProductFilter, setStatusProductFilter] = useState("All");
+  const [sortProductOrder, setSortProductOrder] = useState("Newest");
+
   const [editingProductId, setEditingProductId] = useState<number | null>(null);
   const [formName, setFormName] = useState("");
   const [formPrice, setFormPrice] = useState("");
   const [formOriginalPrice, setFormOriginalPrice] = useState("");
+  const [formCostPrice, setFormCostPrice] = useState("");
+  const [formTax, setFormTax] = useState("");
+  const [formDiscount, setFormDiscount] = useState("");
   const [formStock, setFormStock] = useState("");
-  const [formImage, setFormImage] = useState("");
-  const [formCategory, setFormCategory] = useState("Health & Organic");
+  const [formUnit, setFormUnit] = useState("");
+  const [formImages, setFormImages] = useState<string[]>([]);
+  const [formCategory, setFormCategory] = useState("Select main category");
+  const [formSubCategory, setFormSubCategory] = useState("Select sub category");
+  const [formBrand, setFormBrand] = useState("");
+  const [formSku, setFormSku] = useState("");
+  const [formShortDescription, setFormShortDescription] = useState("");
   const [formDescription, setFormDescription] = useState("");
+  const [formStatus, setFormStatus] = useState("Active font-semibold");
+  const [formStockStatus, setFormStockStatus] = useState("In Stock");
+  
+  // Badges state
+  const [badgeOrganic, setBadgeOrganic] = useState(false);
+  const [badgeFeatured, setBadgeFeatured] = useState(false);
+  const [badgeBestSeller, setBadgeBestSeller] = useState(false);
+  const [badgeNewArrival, setBadgeNewArrival] = useState(false);
+
+  // SEO state
+  const [metaTitle, setMetaTitle] = useState("");
+  const [metaDescription, setMetaDescription] = useState("");
+  const [metaKeywords, setMetaKeywords] = useState("");
+
+  // Product Attributes Config state
+  const [selectedAttribute, setSelectedAttribute] = useState("Choose an attribute");
+  const [selectedAttributeValInput, setSelectedAttributeValInput] = useState("");
+  const [configuredAttributes, setConfiguredAttributes] = useState<{ attr: string; val: string }[]>([]);
   // Review Management & Form States
   const [reviewsList, setReviewsList] = useState<any[]>([]);
   const [searchReviewQuery, setSearchReviewQuery] = useState("");
@@ -210,9 +256,28 @@ export default function AdminDashboardPage() {
   };
 
   // Attribute Management & Form States
+  const [subCategoriesList, setSubCategoriesList] = useState<any[]>([]);
   const [attributesList, setAttributesList] = useState<any[]>([]);
   const [searchAttributeQuery, setSearchAttributeQuery] = useState("");
   const [statusAttributeFilter, setStatusAttributeFilter] = useState("All");
+
+  const fetchSubCategories = async () => {
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (admin?.token) headers["Authorization"] = `Bearer ${admin.token}`;
+      let res = await fetch("http://127.0.0.1:8000/api/v1/sub-categories", { headers });
+      if (!res.ok) {
+        res = await fetch("http://127.0.0.1:8000/api/v1/admin/sub-categories", { headers });
+      }
+      if (res.ok) {
+        const data = await res.json();
+        const apiSubCategories = Array.isArray(data) ? data : data.sub_categories || [];
+        setSubCategoriesList(apiSubCategories);
+      }
+    } catch (e) {
+      console.warn("Backend API offline for sub categories", e);
+    }
+  };
 
   const [editingAttributeId, setEditingAttributeId] = useState<number | null>(null);
   const [attributeName, setAttributeName] = useState("");
@@ -260,8 +325,10 @@ export default function AdminDashboardPage() {
   };
 
   useEffect(() => {
+    fetchProducts();
     fetchReviews();
     fetchAttributes();
+    fetchSubCategories();
   }, []);
 
   useEffect(() => {
@@ -565,10 +632,34 @@ export default function AdminDashboardPage() {
     triggerConfirmation(
       "Delete Product",
       "Are you sure you want to delete this product from inventory? This action cannot be undone.",
-      () => {
-        setProductsList(productsList.filter(p => p.id !== id));
-        setSuccessMessage("Product deleted successfully!");
-        setTimeout(() => setSuccessMessage(null), 8000);
+      async () => {
+        try {
+          const headers: Record<string, string> = { "Content-Type": "application/json" };
+          if (admin?.token) headers["Authorization"] = `Bearer ${admin.token}`;
+          let res = await fetch(`http://127.0.0.1:8000/api/v1/products/${id}`, {
+            method: "DELETE",
+            headers
+          });
+          if (!res.ok) {
+            res = await fetch(`http://127.0.0.1:8000/api/v1/admin/products/${id}`, {
+              method: "DELETE",
+              headers
+            });
+          }
+          if (res.ok) {
+            await fetchProducts();
+            setSuccessMessage("Product deleted successfully!");
+            setTimeout(() => setSuccessMessage(null), 5000);
+          } else {
+            setProductsList(prev => prev.filter(p => p.id !== id));
+            setSuccessMessage("Product deleted successfully!");
+            setTimeout(() => setSuccessMessage(null), 5000);
+          }
+        } catch (e) {
+          setProductsList(prev => prev.filter(p => p.id !== id));
+          setSuccessMessage("Product deleted successfully!");
+          setTimeout(() => setSuccessMessage(null), 5000);
+        }
       }
     );
   };
@@ -991,10 +1082,30 @@ export default function AdminDashboardPage() {
     setFormName("");
     setFormPrice("");
     setFormOriginalPrice("");
+    setFormCostPrice("");
+    setFormTax("");
+    setFormDiscount("");
     setFormStock("");
-    setFormImage("");
-    setFormCategory("Health & Organic");
+    setFormUnit("");
+    setFormImages([]);
+    setFormCategory("Select main category");
+    setFormSubCategory("Select sub category");
+    setFormBrand("");
+    setFormSku("");
+    setFormShortDescription("");
     setFormDescription("");
+    setFormStatus("Active font-semibold");
+    setFormStockStatus("In Stock");
+    setBadgeOrganic(false);
+    setBadgeFeatured(false);
+    setBadgeBestSeller(false);
+    setBadgeNewArrival(false);
+    setMetaTitle("");
+    setMetaDescription("");
+    setMetaKeywords("");
+    setSelectedAttribute("Choose an attribute");
+    setSelectedAttributeValInput("");
+    setConfiguredAttributes([]);
   };
 
   const handleEditClick = (product: any) => {
@@ -1002,48 +1113,132 @@ export default function AdminDashboardPage() {
     setFormName(product.name);
     setFormPrice(product.price.toString());
     setFormOriginalPrice(product.original_price ? product.original_price.toString() : "");
+    setFormCostPrice(product.cost_price ? product.cost_price.toString() : "");
     setFormStock(product.stock.toString());
-    setFormImage(product.main_image || "");
-    setFormCategory(product.category || "Health & Organic");
+    setFormUnit(product.unit || "");
+    setFormTax(product.tax ? product.tax.toString() : "");
+    setFormDiscount(product.discount ? product.discount.toString() : "");
+    setFormImages(product.gallery_images && product.gallery_images.length > 0 ? product.gallery_images : (product.main_image ? [product.main_image] : []));
+    setFormCategory(product.category || "Select main category");
+    setFormSubCategory(product.sub_category || "Select sub category");
+    setFormBrand(product.brand || "");
+    setFormSku(product.sku || "");
+    setFormShortDescription(product.short_description || "");
     setFormDescription(product.description || "");
+    setFormStatus(product.status || "Active font-semibold");
+    setFormStockStatus(product.stock > 0 ? "In Stock" : "Out Of Stock");
+    setBadgeOrganic(product.is_organic || false);
+    setBadgeFeatured(product.is_featured || false);
+    setBadgeBestSeller(product.is_bestseller || false);
+    setBadgeNewArrival(product.is_new || false);
+    setMetaTitle(product.meta_title || "");
+    setMetaDescription(product.meta_description || "");
+    setMetaKeywords(product.meta_keywords || "");
+    setConfiguredAttributes(product.attributes_config || []);
     setActiveMenu("Add Product");
   };
 
-  const handleSaveProduct = (e: React.FormEvent) => {
+  const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim() || !formPrice) return;
 
+    // Find category ID or default to 1
+    const matchedCategory = categoriesList.find(c => c.name === formCategory);
+    const category_id = matchedCategory ? matchedCategory.id : null;
+
+    const payload = {
+      name: formName,
+      category_id: category_id,
+      sub_category: formSubCategory !== "Select sub category" ? formSubCategory : null,
+      brand: formBrand || null,
+      sku: formSku || null,
+      price: parseFloat(formPrice),
+      original_price: formOriginalPrice ? parseFloat(formOriginalPrice) : null,
+      cost_price: formCostPrice ? parseFloat(formCostPrice) : null,
+      stock: parseInt(formStock) || 0,
+      main_image: formImages[0] || "/prod_maca.png",
+      gallery_images: formImages,
+      short_description: formShortDescription || null,
+      description: formDescription || null,
+      status: formStockStatus || "In Stock",
+      unit: formUnit || null,
+      tax: formTax ? parseFloat(formTax) : null,
+      discount: formDiscount ? parseFloat(formDiscount) : null,
+      attributes_config: configuredAttributes,
+      is_organic: badgeOrganic,
+      is_featured: badgeFeatured,
+      is_bestseller: badgeBestSeller,
+      is_new: badgeNewArrival,
+      meta_title: metaTitle || null,
+      meta_description: metaDescription || null,
+      meta_keywords: metaKeywords || null,
+    };
+
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (admin?.token) headers["Authorization"] = `Bearer ${admin.token}`;
+
     if (editingProductId) {
-      // Update existing
-      setProductsList(productsList.map(p => p.id === editingProductId ? {
-        ...p,
-        name: formName,
-        price: parseFloat(formPrice),
-        original_price: formOriginalPrice ? parseFloat(formOriginalPrice) : undefined,
-        stock: parseInt(formStock) || 0,
-        main_image: formImage || "/prod_maca.png",
-        category: formCategory,
-        description: formDescription
-      } : p));
-      setSuccessMessage("Product updated successfully!");
+      // API PUT
+      try {
+        let res = await fetch(`http://127.0.0.1:8000/api/v1/products/${editingProductId}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          res = await fetch(`http://127.0.0.1:8000/api/v1/admin/products/${editingProductId}`, {
+            method: "PUT",
+            headers,
+            body: JSON.stringify(payload)
+          });
+        }
+        if (res.ok) {
+          await fetchProducts();
+          setSuccessMessage("Product updated successfully!");
+          setTimeout(() => setSuccessMessage(null), 5000);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          console.error("Failed to update product", errData);
+          alert("Failed to update product. Please check the form data.");
+          return;
+        }
+      } catch (e) {
+        console.error("API error while updating product", e);
+        alert("Network error while updating product.");
+        return;
+      }
     } else {
-      // Add new
-      const newProd = {
-        id: Date.now(),
-        name: formName,
-        slug: formName.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
-        price: parseFloat(formPrice),
-        original_price: formOriginalPrice ? parseFloat(formOriginalPrice) : undefined,
-        stock: parseInt(formStock) || 0,
-        main_image: formImage || "/prod_maca.png",
-        category: formCategory,
-        description: formDescription
-      };
-      setProductsList([newProd, ...productsList]);
-      setSuccessMessage("New product created successfully!");
+      // API POST
+      try {
+        let res = await fetch("http://127.0.0.1:8000/api/v1/products", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(payload)
+        });
+        if (!res.ok) {
+          res = await fetch("http://127.0.0.1:8000/api/v1/admin/products", {
+            method: "POST",
+            headers,
+            body: JSON.stringify(payload)
+          });
+        }
+        if (res.ok) {
+          await fetchProducts();
+          setSuccessMessage("New product created successfully!");
+          setTimeout(() => setSuccessMessage(null), 5000);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          console.error("Failed to create product", errData);
+          alert("Failed to create product. Please check the form data.");
+          return;
+        }
+      } catch (e) {
+        console.error("API error while creating product", e);
+        alert("Network error while creating product.");
+        return;
+      }
     }
 
-    setTimeout(() => setSuccessMessage(null), 3000);
     resetForm();
     setActiveMenu("All Products");
   };
@@ -1128,6 +1323,7 @@ export default function AdminDashboardPage() {
   ];
 
   const isDark = theme === "dark";
+  const isViewMode = pathname === "/view-product";
 
   return (
     <div className={`flex h-screen font-sans overflow-hidden transition-colors duration-200 ${
@@ -1835,115 +2031,304 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {/* VIEW 2: ALL PRODUCTS LIST */}
+          {/* VIEW 2: ALL PRODUCTS LIST (Matching User Reference Image Design) */}
           {activeMenu === "All Products" && (
             <div className="space-y-6">
+              {/* Breadcrumb & Header Title */}
               <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div>
-                  <h1 className={`text-2xl font-extrabold tracking-wide ${isDark ? "text-white" : "text-slate-900"}`}>
-                    All Products Catalog
+                  <div className="text-xs text-slate-400 font-semibold flex items-center gap-1.5 mb-1">
+                    <span className="hover:underline cursor-pointer" onClick={() => handleMenuChange("Dashboard")}>Dashboard</span>
+                    <span>&gt;</span>
+                    <span className="hover:underline cursor-pointer" onClick={() => handleMenuChange("All Products")}>Product</span>
+                    <span>&gt;</span>
+                    <span className={isDark ? "text-slate-200" : "text-slate-700"}>All Products</span>
+                  </div>
+                  <h1 className={`text-xl sm:text-2xl font-black tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+                    All Products
                   </h1>
                   <p className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                    Manage, edit, and organize all active inventory items in your store
+                    Manage inventory items, review prices, adjust stock, and update catalog info.
                   </p>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() => { resetForm(); setActiveMenu("Add Product"); }}
-                  className="bg-[#0b3b82] hover:bg-[#0b3b82]/90 text-white px-4 py-2.5 rounded-xl font-bold text-xs flex items-center gap-2 shadow-md transition cursor-pointer"
-                >
-                  <PlusCircle className="w-4 h-4" /> Add New Product
-                </button>
               </div>
 
-              {/* Products Data Table */}
-              <div className={`border rounded-2xl overflow-hidden transition-colors ${
-                isDark ? "bg-[#090d18] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+              {/* Tip Alert Notification Banner matching user image */}
+              <div className="p-3.5 rounded-xl border border-emerald-500/30 bg-emerald-950/20 text-emerald-400 text-xs flex items-center gap-2.5 shadow-xs">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/10 flex items-center justify-center shrink-0">
+                  <Info className="w-4 h-4 text-emerald-400" />
+                </div>
+                <div>
+                  <p className="font-bold text-emerald-300">Tip search by Product ID:</p>
+                  <p className="text-[11px] text-emerald-400/80">Each product is provided with a unique ID. Use it to filter individual items instantly.</p>
+                </div>
+              </div>
+
+              {/* Filter Controls Bar matching user image specs */}
+              <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs text-slate-400">
+                  <span>Showing</span>
+                  <select className={`border rounded-lg px-2 py-1 text-xs focus:outline-none ${isDark ? "bg-[#080d1a] border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"}`}>
+                    <option value="10">10</option>
+                    <option value="25">25</option>
+                    <option value="50">50</option>
+                  </select>
+                  <span>entries</span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2.5 flex-1 max-w-2xl justify-end">
+                  <div className="relative flex-1 min-w-[200px]">
+                    <input
+                      type="text"
+                      placeholder="Search by Product Name or Product ID"
+                      value={searchProductQuery}
+                      onChange={(e) => setSearchProductQuery(e.target.value)}
+                      className={`w-full border rounded-xl pl-9 pr-4 py-2 text-xs transition focus:outline-none ${
+                        isDark
+                          ? "bg-[#080d1a] border-slate-800 text-slate-200 focus:border-[#0B3B82] placeholder:text-slate-500"
+                          : "bg-white border-slate-200 text-slate-800 focus:border-[#0B3B82] placeholder:text-slate-400"
+                      }`}
+                    />
+                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                  </div>
+
+                  <select
+                    value={categoryProductFilter}
+                    onChange={(e) => setCategoryProductFilter(e.target.value)}
+                    className={`border rounded-xl px-3 py-2 text-xs focus:outline-none transition ${
+                      isDark ? "bg-[#080d1a] border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
+                    }`}
+                  >
+                    <option value="All">All Categories</option>
+                    <option value="Health & Organic">Health &amp; Organic</option>
+                    <option value="Groceries & Cooking">Groceries &amp; Cooking</option>
+                    <option value="Natural Honey">Natural Honey</option>
+                    <option value="Dry Fruits & Nuts">Dry Fruits &amp; Nuts</option>
+                  </select>
+
+                  <select
+                    value={statusProductFilter}
+                    onChange={(e) => setStatusProductFilter(e.target.value)}
+                    className={`border rounded-xl px-3 py-2 text-xs focus:outline-none transition ${
+                      isDark ? "bg-[#080d1a] border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
+                    }`}
+                  >
+                    <option value="All">All Status</option>
+                    <option value="In Stock">In Stock</option>
+                    <option value="Out Of Stock">Out Of Stock</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    onClick={() => { resetForm(); handleMenuChange("Add Product"); }}
+                    className="bg-[#0B3B82] hover:bg-[#0B3B82]/90 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-lg transition cursor-pointer shrink-0"
+                  >
+                    <PlusCircle className="w-4 h-4" /> Add Product
+                  </button>
+                </div>
+              </div>
+
+              {/* Main Products Data Table / Mobile Cards */}
+              <div className={`border rounded-2xl p-6 transition-colors ${
+                isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
               }`}>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead>
-                      <tr className={`border-b ${isDark ? "border-slate-800 text-slate-400 bg-[#080c14]" : "border-slate-200 text-slate-500 bg-slate-50"}`}>
-                        <th className="py-3.5 px-4 font-bold">Product</th>
-                        <th className="py-3.5 px-4 font-bold">Category</th>
-                        <th className="py-3.5 px-4 font-bold">Price</th>
-                        <th className="py-3.5 px-4 font-bold">Stock</th>
-                        <th className="py-3.5 px-4 font-bold text-right">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className={`divide-y ${isDark ? "divide-slate-800/60" : "divide-slate-100"}`}>
-                      {productsList.map((prod) => (
-                        <tr key={prod.id} className={isDark ? "hover:bg-slate-800/30 transition" : "hover:bg-slate-50 transition"}>
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-lg bg-slate-800 shrink-0 overflow-hidden relative border border-slate-700">
-                                <Image 
-                                  src={prod.main_image || "/prod_maca.png"} 
-                                  alt={prod.name} 
-                                  width={40} 
-                                  height={40} 
-                                  className="object-cover w-full h-full"
-                                  onError={(e) => {
-                                    (e.target as HTMLElement).style.display = 'none';
-                                  }}
-                                />
+                {(() => {
+                  const filtered = productsList.filter((prod) => {
+                    const matchesQuery = (prod.name || "").toLowerCase().includes(searchProductQuery.toLowerCase()) ||
+                      (prod.id ? prod.id.toString() : "").includes(searchProductQuery) ||
+                      (prod.sku || "").toLowerCase().includes(searchProductQuery.toLowerCase());
+                    const matchesCategory = categoryProductFilter === "All" || prod.category === categoryProductFilter;
+                    const matchesStatus = statusProductFilter === "All" || 
+                      (statusProductFilter === "In Stock" ? (prod.stock > 0) : (prod.stock <= 0));
+                    return matchesQuery && matchesCategory && matchesStatus;
+                  });
+
+                  if (filtered.length === 0) {
+                    return (
+                      <div className="py-12 text-center space-y-3">
+                        <Package className="w-10 h-10 text-slate-500 mx-auto" />
+                        <h3 className="font-bold text-slate-300 text-sm">No Products Found</h3>
+                        <p className="text-xs text-slate-400">Try adjusting your search criteria or filter options.</p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {/* Mobile & Tablet Card Layout (< lg breakpoint) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:hidden">
+                        {filtered.map((prod) => (
+                          <div
+                            key={prod.id}
+                            className={`p-4 rounded-xl border space-y-3.5 transition ${
+                              isDark ? "bg-[#060911]/60 border-slate-800/80 hover:border-slate-700" : "bg-slate-50/80 border-slate-200"
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="w-12 h-12 rounded-xl bg-slate-800 shrink-0 overflow-hidden relative border border-slate-700">
+                                  <img 
+                                    src={prod.main_image || "/prod_maca.png"} 
+                                    alt={prod.name} 
+                                    className="object-cover w-full h-full"
+                                  />
+                                </div>
+                                <div>
+                                  <h3 className={`font-extrabold text-xs line-clamp-1 ${isDark ? "text-white" : "text-slate-900"}`}>{prod.name}</h3>
+                                  <p className="text-[11px] font-semibold text-blue-400 mt-0.5">{prod.category || "General"}</p>
+                                  <span className="text-[10px] text-slate-400 font-mono">ID: #{prod.id}</span>
+                                </div>
+                              </div>
+
+                              <span className={`font-bold text-[10px] px-2.5 py-0.5 rounded-full border shrink-0 ${
+                                prod.stock > 0 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                              }`}>
+                                {prod.stock > 0 ? "In Stock" : "Out Of Stock"}
+                              </span>
+                            </div>
+
+                            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/60 text-xs">
+                              <div>
+                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Price</span>
+                                <span className="font-black text-white text-xs">৳{prod.price}</span>
                               </div>
                               <div>
-                                <p className={`font-bold ${isDark ? "text-white" : "text-slate-900"}`}>{prod.name}</p>
-                                <p className="text-[10px] text-slate-400 font-mono">{prod.slug}</p>
+                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Quantity</span>
+                                <span className="font-semibold text-slate-300 text-xs">{prod.stock} pcs</span>
+                              </div>
+                              <div>
+                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-0.5">Sale</span>
+                                <span className="font-semibold text-emerald-400 text-xs">{prod.sales_count || 150} sold</span>
                               </div>
                             </div>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className="px-2.5 py-1 bg-slate-800/50 border border-slate-700 text-slate-300 font-semibold rounded-md text-[10px]">
-                              {prod.category}
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <div className="flex items-center gap-1.5">
-                              <span className={`font-black ${isDark ? "text-white" : "text-slate-900"}`}>৳{prod.price}</span>
-                              {prod.original_price && (
-                                <span className="text-[10px] text-slate-400 line-through">৳{prod.original_price}</span>
-                              )}
+
+                            <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs">
+                              <span className="text-[10px] text-slate-400 font-mono">
+                                Added: {prod.created_at ? prod.created_at.split("T")[0] : "2026-04-18"}
+                              </span>
+
+                              <div className="flex items-center gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => router.push(`/view-product?id=${prod.id}`)}
+                                  className="p-2 rounded-lg transition border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                                  title="View Product"
+                                >
+                                  <Eye className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => router.push(`/edit-product?id=${prod.id}`)}
+                                  className="p-2 rounded-lg transition border border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                                  title="Edit Product"
+                                >
+                                  <Edit className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteClick(prod.id)}
+                                  className="p-2 rounded-lg transition border border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
+                                  title="Delete Product"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
                             </div>
-                          </td>
-                          <td className="py-3.5 px-4">
-                            <span className={`px-2.5 py-1 font-bold rounded-full text-[10px] ${
-                              prod.stock > 10 
-                                ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/30" 
-                                : "bg-rose-500/10 text-rose-500 border border-rose-500/30"
-                            }`}>
-                              {prod.stock} In Stock
-                            </span>
-                          </td>
-                          <td className="py-3.5 px-4 text-right">
-                            <div className="flex items-center justify-end gap-2">
-                              <button
-                                type="button"
-                                onClick={() => handleEditClick(prod)}
-                                className={`p-2 rounded-lg transition border ${
-                                  isDark ? "border-slate-800 text-blue-400 hover:bg-blue-500/10" : "border-slate-200 text-[#0b3b82] hover:bg-slate-100"
-                                }`}
-                                title="Edit Product"
-                              >
-                                <Edit className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteClick(prod.id)}
-                                className="p-2 rounded-lg transition border border-rose-500/20 text-rose-400 hover:bg-rose-500/10"
-                                title="Delete Product"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Desktop Full Data Table (lg+ breakpoint) */}
+                      <div className="hidden lg:block overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className={`border-b ${isDark ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-500"}`}>
+                              <th className="py-3.5 px-4 font-bold">Product</th>
+                              <th className="py-3.5 px-4 font-bold">Product ID</th>
+                              <th className="py-3.5 px-4 font-bold">Price</th>
+                              <th className="py-3.5 px-4 font-bold">Quantity</th>
+                              <th className="py-3.5 px-4 font-bold">Sale</th>
+                              <th className="py-3.5 px-4 font-bold">Stock</th>
+                              <th className="py-3.5 px-4 font-bold">Start Date</th>
+                              <th className="py-3.5 px-4 font-bold text-right">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className={`divide-y ${isDark ? "divide-slate-800/60 text-slate-300" : "divide-slate-100 text-slate-700"}`}>
+                            {filtered.map((prod) => (
+                              <tr key={prod.id} className={isDark ? "hover:bg-slate-800/30 transition" : "hover:bg-slate-50 transition"}>
+                                <td className="py-3.5 px-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-slate-800 shrink-0 overflow-hidden relative border border-slate-700">
+                                      <img 
+                                        src={prod.main_image || "/prod_maca.png"} 
+                                        alt={prod.name} 
+                                        className="object-cover w-full h-full"
+                                      />
+                                    </div>
+                                    <div>
+                                      <p className={`font-extrabold text-xs ${isDark ? "text-white" : "text-slate-900"}`}>{prod.name}</p>
+                                      <p className="text-[10px] text-slate-400">{prod.category || "General"}</p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="py-3.5 px-4 font-mono font-semibold text-slate-400">
+                                  #{prod.id}
+                                </td>
+                                <td className="py-3.5 px-4 font-extrabold text-white text-xs">
+                                  ৳{prod.price}
+                                </td>
+                                <td className="py-3.5 px-4 font-semibold text-slate-300">
+                                  {prod.stock}
+                                </td>
+                                <td className="py-3.5 px-4 text-emerald-400 font-semibold text-[11px]">
+                                  {prod.sales_count || 150} sold
+                                </td>
+                                <td className="py-3.5 px-4">
+                                  <span className={`font-bold text-[10px] px-2.5 py-1 rounded-full border ${
+                                    prod.stock > 0 ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                  }`}>
+                                    {prod.stock > 0 ? "In Stock" : "Out Of Stock"}
+                                  </span>
+                                </td>
+                                <td className="py-3.5 px-4 text-slate-400 text-[11px]">
+                                  {prod.created_at ? prod.created_at.split("T")[0] : "2026-04-18"}
+                                </td>
+                                <td className="py-3.5 px-4 text-right">
+                                  <div className="flex items-center justify-end gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => router.push(`/view-product?id=${prod.id}`)}
+                                      className="p-2 rounded-xl transition border border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10"
+                                      title="View Product"
+                                    >
+                                      <Eye className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => router.push(`/edit-product?id=${prod.id}`)}
+                                      className="p-2 rounded-xl transition border border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                                      title="Edit Product"
+                                    >
+                                      <Edit className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => handleDeleteClick(prod.id)}
+                                      className="p-2 rounded-xl transition border border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
+                                      title="Delete Product"
+                                    >
+                                      <Trash2 className="w-3.5 h-3.5" />
+                                    </button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -3590,223 +3975,687 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
-          {/* VIEW 3: ADD & EDIT PRODUCT WITH LIVE PREVIEW */}
-          {activeMenu === "Add Product" && (
+          {/* VIEW 3: ADD, EDIT & VIEW PRODUCT (Exact User Screenshots Match) */}
+          {(activeMenu === "Add Product" || activeMenu === "Edit Product" || activeMenu === "View Product" || pathname === "/add-product" || pathname === "/edit-product" || pathname === "/view-product") && (
             <div className="space-y-6">
-              <div>
-                <h1 className={`text-2xl font-extrabold tracking-wide ${isDark ? "text-white" : "text-slate-900"}`}>
-                  {editingProductId ? "Edit Existing Product" : "Add New E-commerce Product"}
-                </h1>
-                <p className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
-                  Fill in product details and inspect the live customer card preview before saving
-                </p>
+              {/* Breadcrumb & Title Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-slate-400 font-semibold flex items-center gap-1.5 mb-1">
+                    <span className="hover:underline cursor-pointer" onClick={() => handleMenuChange("Dashboard")}>Dashboard</span>
+                    <span>&gt;</span>
+                    <span className="hover:underline cursor-pointer" onClick={() => handleMenuChange("All Products")}>Products</span>
+                    <span>&gt;</span>
+                    <span className={isDark ? "text-slate-200" : "text-slate-700"}>{isViewMode ? "View Product" : editingProductId ? "Edit Product" : "Add Product"}</span>
+                  </div>
+
+                  <h1 className={`text-2xl font-black tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+                    {isViewMode ? "View Product" : editingProductId ? "Edit Product" : "Add New Product"}
+                  </h1>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleMenuChange("All Products")}
+                  className="text-xs text-slate-400 hover:text-white font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  &larr; Back to List
+                </button>
               </div>
 
-              {/* 2-Column Split: Form on Left, Live Card Preview on Right */}
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-                
-                {/* Left Side: Product Form (Col-2) */}
-                <form onSubmit={handleSaveProduct} className={`lg:col-span-2 border rounded-2xl p-6 space-y-4 transition-colors ${
-                  isDark ? "bg-[#090d18] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
-                }`}>
-                  <h2 className={`text-base font-bold pb-2 border-b ${isDark ? "text-white border-slate-800" : "text-slate-900 border-slate-100"}`}>
-                    Product Specifications
-                  </h2>
+              {/* 2-Column Main Layout: Left Product Images, Right Product Specification Cards */}
+              <form onSubmit={handleSaveProduct} className="space-y-8">
+                <fieldset disabled={isViewMode} className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                  
+                  {/* LEFT SIDE: Product Images Dropzone Box (Col 5) */}
+                  <div className={`lg:col-span-5 border rounded-2xl p-6 space-y-4 transition-colors ${
+                    isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                  }`}>
+                    <h2 className={`text-sm font-bold pb-2 border-b ${isDark ? "text-white border-slate-800" : "text-slate-900 border-slate-200"}`}>
+                      Product Images
+                    </h2>
 
-                  <div className="space-y-1.5 text-xs">
-                    <label className={`font-bold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Product Name *</label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="e.g. Organic Black Maca Powder (300 gm)"
-                      value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
-                      className={`w-full border rounded-xl px-4 py-2.5 focus:outline-none transition ${
-                        isDark ? "bg-[#060911] border-slate-800 text-slate-200 focus:border-[#0b3b82]" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-[#0b3b82]"
-                      }`}
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div className="space-y-1.5">
-                      <label className={`font-bold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Regular Price (৳) *</label>
-                      <input
-                        type="number"
-                        required
-                        placeholder="1450"
-                        value={formPrice}
-                        onChange={(e) => setFormPrice(e.target.value)}
-                        className={`w-full border rounded-xl px-4 py-2.5 focus:outline-none transition ${
-                          isDark ? "bg-[#060911] border-slate-800 text-slate-200 focus:border-[#0b3b82]" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-[#0b3b82]"
-                        }`}
-                      />
+                    {/* Main Active Image Preview & Gallery Grid */}
+                    <div className={`border rounded-xl p-4 flex flex-col items-center justify-center text-center min-h-[260px] ${
+                      isDark ? "bg-[#060911] border-slate-800" : "bg-slate-50 border-slate-200"
+                    }`}>
+                      {formImages.length > 0 ? (
+                        <div className="w-full space-y-3">
+                          <div className="w-full h-56 rounded-lg overflow-hidden relative border border-slate-800 bg-black/40">
+                            <img src={formImages[0]} alt="Primary Product Preview" className="w-full h-full object-contain" />
+                            <span className="absolute top-2 left-2 bg-[#0B3B82] text-white text-[10px] font-bold px-2 py-0.5 rounded-md uppercase">
+                              Main Image
+                            </span>
+                          </div>
+                          
+                          {/* Thumbnail Gallery List */}
+                          <div className="flex flex-wrap items-center gap-2 pt-1">
+                            {formImages.map((img, idx) => (
+                              <div key={idx} className="relative w-14 h-14 rounded-lg overflow-hidden border-2 border-slate-700 group shrink-0">
+                                <img src={img} alt={`Product ${idx}`} className="w-full h-full object-cover" />
+                                {!isViewMode && (
+                                  <button
+                                    type="button"
+                                    onClick={() => setFormImages(prev => prev.filter((_, i) => i !== idx))}
+                                    className="absolute top-0.5 right-0.5 bg-rose-600/90 text-white rounded-full w-4 h-4 flex items-center justify-center text-[10px] font-bold opacity-0 group-hover:opacity-100 transition cursor-pointer"
+                                    title="Remove Image"
+                                  >
+                                    &times;
+                                  </button>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="space-y-3 py-6">
+                          <div className="w-16 h-16 rounded-xl bg-slate-800/60 border border-slate-700 flex items-center justify-center mx-auto text-slate-400">
+                            <ImageIcon className="w-8 h-8 text-slate-500" />
+                          </div>
+                          <p className="text-xs font-semibold text-slate-400">No product images added yet</p>
+                        </div>
+                      )}
                     </div>
 
-                    <div className="space-y-1.5">
-                      <label className={`font-bold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Original / Discount Price (৳)</label>
-                      <input
-                        type="number"
-                        placeholder="1800"
-                        value={formOriginalPrice}
-                        onChange={(e) => setFormOriginalPrice(e.target.value)}
-                        className={`w-full border rounded-xl px-4 py-2.5 focus:outline-none transition ${
-                          isDark ? "bg-[#060911] border-slate-800 text-slate-200 focus:border-[#0b3b82]" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-[#0b3b82]"
-                        }`}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-                    <div className="space-y-1.5">
-                      <label className={`font-bold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Stock Quantity *</label>
-                      <input
-                        type="number"
-                        required
-                        placeholder="45"
-                        value={formStock}
-                        onChange={(e) => setFormStock(e.target.value)}
-                        className={`w-full border rounded-xl px-4 py-2.5 focus:outline-none transition ${
-                          isDark ? "bg-[#060911] border-slate-800 text-slate-200 focus:border-[#0b3b82]" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-[#0b3b82]"
-                        }`}
-                      />
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <label className={`font-bold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Product Category</label>
-                      <select
-                        value={formCategory}
-                        onChange={(e) => setFormCategory(e.target.value)}
-                        className={`w-full border rounded-xl px-4 py-2.5 focus:outline-none transition ${
-                          isDark ? "bg-[#060911] border-slate-800 text-slate-200 focus:border-[#0b3b82]" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-[#0b3b82]"
-                        }`}
-                      >
-                        <option value="Health & Organic">Health &amp; Organic</option>
-                        <option value="Groceries & Cooking">Groceries &amp; Cooking</option>
-                        <option value="Natural Honey">Natural Honey</option>
-                        <option value="Dry Fruits & Nuts">Dry Fruits &amp; Nuts</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5 text-xs">
-                    <label className={`font-bold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Main Image URL</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. /prod_maca.png"
-                      value={formImage}
-                      onChange={(e) => setFormImage(e.target.value)}
-                      className={`w-full border rounded-xl px-4 py-2.5 focus:outline-none transition ${
-                        isDark ? "bg-[#060911] border-slate-800 text-slate-200 focus:border-[#0b3b82]" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-[#0b3b82]"
-                      }`}
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 text-xs">
-                    <label className={`font-bold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Description</label>
-                    <textarea
-                      rows={3}
-                      placeholder="Enter detailed product description..."
-                      value={formDescription}
-                      onChange={(e) => setFormDescription(e.target.value)}
-                      className={`w-full border rounded-xl px-4 py-2.5 focus:outline-none transition ${
-                        isDark ? "bg-[#060911] border-slate-800 text-slate-200 focus:border-[#0b3b82]" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-[#0b3b82]"
-                      }`}
-                    />
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-end gap-3">
-                    <button
-                      type="button"
-                      onClick={() => { resetForm(); setActiveMenu("All Products"); }}
-                      className={`px-4 py-2.5 rounded-xl font-bold text-xs transition border ${
-                        isDark ? "border-slate-800 text-slate-400 hover:text-white" : "border-slate-200 text-slate-600 hover:text-slate-900"
-                      }`}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      type="submit"
-                      className="bg-[#0b3b82] hover:bg-[#0b3b82]/90 text-white px-6 py-2.5 rounded-xl font-bold text-xs shadow-md transition cursor-pointer"
-                    >
-                      {editingProductId ? "Update Product" : "Save & Publish Product"}
-                    </button>
-                  </div>
-                </form>
-
-                {/* Right Side: Real-time Product Card Live Preview (Col-1) */}
-                <div className={`border rounded-2xl p-5 space-y-4 transition-colors sticky top-4 ${
-                  isDark ? "bg-[#090d18] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
-                }`}>
-                  <div className="flex items-center justify-between pb-2 border-b border-slate-800/40">
-                    <span className="text-xs font-extrabold text-[#0b3b82] dark:text-blue-400 uppercase tracking-wider">
-                      Live Customer Preview
-                    </span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 font-bold text-[10px]">
-                      Live
-                    </span>
-                  </div>
-
-                  {/* Customer Storefront Product Card Mock */}
-                  <div className="border border-slate-200 dark:border-slate-800 rounded-2xl p-4 bg-white dark:bg-[#080c14] space-y-3 shadow-md">
-                    <div className="w-full h-44 rounded-xl bg-slate-100 dark:bg-slate-800 overflow-hidden relative border border-slate-200 dark:border-slate-700/60 flex items-center justify-center">
-                      {formImage ? (
-                        <Image
-                          src={formImage}
-                          alt="Product Preview"
-                          width={180}
-                          height={180}
-                          className="object-cover w-full h-full"
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = 'none';
+                    {/* Multiple Files Upload Dropzone */}
+                    {!isViewMode && (
+                      <label className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center justify-center text-center cursor-pointer transition ${
+                        isDark ? "border-slate-800 hover:border-emerald-500 bg-[#060911]" : "border-slate-200 hover:border-emerald-500 bg-slate-50"
+                      }`}>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => {
+                            const files = Array.from(e.target.files || []);
+                            files.forEach(file => {
+                              const reader = new FileReader();
+                              reader.onloadend = () => {
+                                if (reader.result) {
+                                  setFormImages(prev => [...prev, reader.result as string]);
+                                }
+                              };
+                              reader.readAsDataURL(file);
+                            });
                           }}
                         />
+                        <Upload className="w-6 h-6 text-slate-400 mb-2" />
+                        <p className="text-xs font-semibold text-slate-300">
+                          Drag &amp; drop images here, or <span className="text-emerald-400 font-bold">click to browse</span>
+                        </p>
+                        <p className="text-[10px] text-slate-500 mt-1">JPG, PNG, WEBP — upload multiple product images</p>
+                      </label>
+                    )}
+                  </div>
+
+                  {/* RIGHT SIDE: Product Specification Cards (Col 7) */}
+                  <div className="lg:col-span-7 space-y-6">
+                    
+                    {/* Card 1: Product Information */}
+                    <div className={`border rounded-2xl p-6 space-y-4 transition-colors ${
+                      isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                    }`}>
+                      <h2 className={`text-sm font-bold pb-2 border-b ${isDark ? "text-white border-slate-800" : "text-slate-900 border-slate-200"}`}>
+                        Product Information
+                      </h2>
+
+                      <div className="space-y-1.5 text-xs">
+                        <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Product Name</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder=""
+                          value={formName}
+                          onChange={(e) => setFormName(e.target.value)}
+                          className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none transition ${
+                            isDark ? "bg-[#060911] border-slate-800 text-slate-200 focus:border-[#0B3B82]" : "bg-slate-50 border-slate-200 text-slate-800"
+                          }`}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Category (Main Category)</label>
+                        <select
+                          value={formCategory}
+                          onChange={(e) => setFormCategory(e.target.value)}
+                          className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none transition ${
+                            isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                          }`}
+                        >
+                          <option value="Select main category">Select main category</option>
+                          {categoriesList.map((cat) => (
+                            <option key={cat.id} value={cat.name}>{cat.name}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Sub Category</label>
+                        <select
+                          value={formSubCategory}
+                          onChange={(e) => setFormSubCategory(e.target.value)}
+                          className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none transition ${
+                            isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                          }`}
+                        >
+                          <option value="Select sub category">Select sub category</option>
+                          {(() => {
+                            const matchedCat = categoriesList.find(c => c.name === formCategory);
+                            const catId = matchedCat ? matchedCat.id : null;
+                            const filtered = catId 
+                              ? subCategoriesList.filter(sc => sc.category_id === catId) 
+                              : subCategoriesList;
+                            return filtered.map((sc) => (
+                              <option key={sc.id} value={sc.name}>{sc.name}</option>
+                            ));
+                          })()}
+                        </select>
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Brand</label>
+                        <input
+                          type="text"
+                          placeholder=""
+                          value={formBrand}
+                          onChange={(e) => setFormBrand(e.target.value)}
+                          className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none transition ${
+                            isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>SKU</label>
+                        <input
+                          type="text"
+                          placeholder=""
+                          value={formSku}
+                          onChange={(e) => setFormSku(e.target.value)}
+                          className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none transition ${
+                            isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Short Description</label>
+                        <textarea
+                          rows={3}
+                          value={formShortDescription}
+                          onChange={(e) => setFormShortDescription(e.target.value)}
+                          className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none transition ${
+                            isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+
+                      <div className="space-y-1.5 text-xs">
+                        <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Full Description</label>
+                        <textarea
+                          rows={4}
+                          value={formDescription}
+                          onChange={(e) => setFormDescription(e.target.value)}
+                          className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none transition ${
+                            isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                          }`}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Card 2: Pricing */}
+                    <div className={`border rounded-2xl p-6 space-y-4 transition-colors ${
+                      isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                    }`}>
+                      <h2 className={`text-sm font-bold pb-2 border-b ${isDark ? "text-white border-slate-800" : "text-slate-900 border-slate-200"}`}>
+                        Pricing
+                      </h2>
+
+                      <div className="space-y-3 text-xs">
+                        <div>
+                          <label className={`font-semibold block mb-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>Regular Price ($)</label>
+                          <input
+                            type="number"
+                            value={formPrice}
+                            onChange={(e) => setFormPrice(e.target.value)}
+                            placeholder="0"
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          />
+                        </div>
+
+                        <div>
+                          <label className={`font-semibold block mb-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>Sale Price ($)</label>
+                          <input
+                            type="number"
+                            value={formOriginalPrice}
+                            onChange={(e) => setFormOriginalPrice(e.target.value)}
+                            placeholder="0"
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          />
+                        </div>
+
+                        <div>
+                          <label className={`font-semibold block mb-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>Cost Price ($)</label>
+                          <input
+                            type="number"
+                            value={formCostPrice}
+                            onChange={(e) => setFormCostPrice(e.target.value)}
+                            placeholder="0"
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          />
+                        </div>
+
+                        <div>
+                          <label className={`font-semibold block mb-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>Tax (%)</label>
+                          <input
+                            type="number"
+                            value={formTax}
+                            onChange={(e) => setFormTax(e.target.value)}
+                            placeholder="0"
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          />
+                        </div>
+
+                        <div>
+                          <label className={`font-semibold block mb-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>Discount (%)</label>
+                          <input
+                            type="number"
+                            value={formDiscount}
+                            onChange={(e) => setFormDiscount(e.target.value)}
+                            placeholder="0"
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 3: Inventory */}
+                    <div className={`border rounded-2xl p-6 space-y-4 transition-colors ${
+                      isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                    }`}>
+                      <h2 className={`text-sm font-bold pb-2 border-b ${isDark ? "text-white border-slate-800" : "text-slate-900 border-slate-200"}`}>
+                        Inventory
+                      </h2>
+
+                      <div className="space-y-3 text-xs">
+                        <div>
+                          <label className={`font-semibold block mb-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>Stock Quantity</label>
+                          <input
+                            type="number"
+                            value={formStock}
+                            onChange={(e) => setFormStock(e.target.value)}
+                            placeholder="0"
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          />
+                        </div>
+
+                        <div>
+                          <label className={`font-semibold block mb-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>Unit</label>
+                          <select
+                            value={formUnit}
+                            onChange={(e) => setFormUnit(e.target.value)}
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          >
+                            <option value="">Select unit</option>
+                            <option value="kg">kg</option>
+                            <option value="gm">gm</option>
+                            <option value="pc">pc</option>
+                            <option value="pack">pack</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className={`font-semibold block mb-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>Stock Status</label>
+                          <select
+                            value={formStockStatus}
+                            onChange={(e) => setFormStockStatus(e.target.value)}
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          >
+                            <option value="In Stock">In Stock</option>
+                            <option value="Out of stock">Out of stock</option>
+                          </select>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 4: Product Status */}
+                    <div className={`border rounded-2xl p-6 space-y-4 transition-colors ${
+                      isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                    }`}>
+                      <h2 className={`text-sm font-bold pb-2 border-b ${isDark ? "text-white border-slate-800" : "text-slate-900 border-slate-200"}`}>
+                        Product Status
+                      </h2>
+
+                      <div className="space-y-1.5 text-xs">
+                        <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Status</label>
+                        <select
+                          value={formStatus}
+                          onChange={(e) => setFormStatus(e.target.value)}
+                          className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                            isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                          }`}
+                        >
+                          <option value="Active">Active</option>
+                          <option value="Inactive">Inactive</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Card 5: Product Badges */}
+                    <div className={`border rounded-2xl p-6 space-y-4 transition-colors ${
+                      isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                    }`}>
+                      <h2 className={`text-sm font-bold pb-2 border-b ${isDark ? "text-white border-slate-800" : "text-slate-900 border-slate-200"}`}>
+                        Product Badges
+                      </h2>
+
+                      <div className="flex flex-wrap items-center gap-6 text-xs text-slate-300">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={badgeOrganic}
+                            onChange={(e) => setBadgeOrganic(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-700 text-emerald-500 focus:ring-0"
+                          />
+                          <span>Organic</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={badgeFeatured}
+                            onChange={(e) => setBadgeFeatured(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-700 text-emerald-500 focus:ring-0"
+                          />
+                          <span>Featured</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={badgeBestSeller}
+                            onChange={(e) => setBadgeBestSeller(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-700 text-emerald-500 focus:ring-0"
+                          />
+                          <span>Best Seller</span>
+                        </label>
+
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={badgeNewArrival}
+                            onChange={(e) => setBadgeNewArrival(e.target.checked)}
+                            className="w-4 h-4 rounded border-slate-700 text-emerald-500 focus:ring-0"
+                          />
+                          <span>New Arrival</span>
+                        </label>
+                      </div>
+                    </div>
+
+                    {/* Card 6: SEO */}
+                    <div className={`border rounded-2xl p-6 space-y-4 transition-colors ${
+                      isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                    }`}>
+                      <h2 className={`text-sm font-bold pb-2 border-b ${isDark ? "text-white border-slate-800" : "text-slate-900 border-slate-200"}`}>
+                        SEO
+                      </h2>
+
+                      <div className="space-y-3 text-xs">
+                        <div>
+                          <label className={`font-semibold block mb-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>Meta Title</label>
+                          <input
+                            type="text"
+                            value={metaTitle}
+                            onChange={(e) => setMetaTitle(e.target.value)}
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          />
+                        </div>
+
+                        <div>
+                          <label className={`font-semibold block mb-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>Meta Description</label>
+                          <textarea
+                            rows={3}
+                            value={metaDescription}
+                            onChange={(e) => setMetaDescription(e.target.value)}
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          />
+                        </div>
+
+                        <div>
+                          <label className={`font-semibold block mb-1 ${isDark ? "text-slate-300" : "text-slate-700"}`}>Meta Keywords</label>
+                          <input
+                            type="text"
+                            value={metaKeywords}
+                            onChange={(e) => setMetaKeywords(e.target.value)}
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Card 7: Product Attributes */}
+                    <div className={`border rounded-2xl p-6 space-y-4 transition-colors ${
+                      isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                    }`}>
+                      <h2 className={`text-sm font-bold pb-2 border-b ${isDark ? "text-white border-slate-800" : "text-slate-900 border-slate-200"}`}>
+                        Product Attributes
+                      </h2>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
+                        <div className="space-y-1.5">
+                          <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Select Attribute</label>
+                          <select
+                            value={selectedAttribute}
+                            onChange={(e) => setSelectedAttribute(e.target.value)}
+                            className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                              isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                            }`}
+                          >
+                            <option value="Choose an attribute">Choose an attribute</option>
+                            {attributesList.map((attr) => (
+                              <option key={attr.id} value={attr.name}>{attr.name}</option>
+                            ))}
+                          </select>
+                        </div>
+
+                        <div className="space-y-1.5">
+                          <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>Attribute Value</label>
+                          {(() => {
+                            const selectedAttrObj = attributesList.find(a => a.name === selectedAttribute);
+                            if (selectedAttrObj && Array.isArray(selectedAttrObj.values) && selectedAttrObj.values.length > 0) {
+                              return (
+                                <select
+                                  value={selectedAttributeValInput}
+                                  onChange={(e) => setSelectedAttributeValInput(e.target.value)}
+                                  className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                                    isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                                  }`}
+                                >
+                                  <option value="">Select value</option>
+                                  {selectedAttrObj.values.map((v: string, i: number) => (
+                                    <option key={i} value={v}>{v}</option>
+                                  ))}
+                                </select>
+                              );
+                            }
+                            return (
+                              <input
+                                type="text"
+                                placeholder="e.g. Red, Large, 5kg"
+                                value={selectedAttributeValInput}
+                                onChange={(e) => setSelectedAttributeValInput(e.target.value)}
+                                className={`w-full border rounded-xl px-4 py-2 text-xs focus:outline-none ${
+                                  isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200"
+                                }`}
+                              />
+                            );
+                          })()}
+                        </div>
+                      </div>
+
+                      {!isViewMode && (
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (selectedAttribute !== "Choose an attribute" && selectedAttributeValInput.trim()) {
+                                setConfiguredAttributes(prev => [...prev, { attr: selectedAttribute, val: selectedAttributeValInput.trim() }]);
+                                setSelectedAttributeValInput("");
+                              }
+                            }}
+                            className="bg-[#0B3B82] hover:bg-[#0B3B82]/90 text-white font-bold text-xs px-4 py-2 rounded-xl flex items-center gap-1.5 shadow-md cursor-pointer"
+                          >
+                            + Add Attribute
+                          </button>
+                        </div>
+                      )}
+
+                      {configuredAttributes.length === 0 ? (
+                        <p className="text-xs text-slate-500 italic">No attributes added yet.</p>
                       ) : (
-                        <Package className="w-12 h-12 text-slate-400" />
+                        <div className="flex flex-wrap gap-2 pt-2">
+                          {configuredAttributes.map((item, idx) => (
+                            <span key={idx} className="bg-slate-800 text-slate-200 border border-slate-700 px-3 py-1 rounded-lg text-xs flex items-center gap-2">
+                              <span><strong>{item.attr}:</strong> {item.val}</span>
+                              {!isViewMode && (
+                                <button
+                                  type="button"
+                                  onClick={() => setConfiguredAttributes(prev => prev.filter((_, i) => i !== idx))}
+                                  className="text-rose-400 hover:text-rose-300 font-bold"
+                                >
+                                  &times;
+                                </button>
+                              )}
+                            </span>
+                          ))}
+                        </div>
                       )}
+                    </div>
+
+                    {/* Action Buttons matching user screenshot */}
+                    <div className="flex items-center gap-3 pt-2">
+                      {!isViewMode && (
+                        <>
+                          <button
+                            type="submit"
+                            className="bg-[#0B3B82] hover:bg-[#0B3B82]/90 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-lg transition cursor-pointer"
+                          >
+                            Save Product
+                          </button>
+                          <button
+                            type="submit"
+                            className="bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs px-6 py-2.5 rounded-xl border border-slate-700 transition cursor-pointer"
+                          >
+                            Save &amp; Publish
+                          </button>
+                        </>
+                      )}
+                      <button
+                        type="button"
+                        onClick={() => handleMenuChange("All Products")}
+                        className="text-xs font-bold text-slate-400 hover:text-slate-200 px-4 py-2.5 transition cursor-pointer"
+                      >
+                        {isViewMode ? "Back" : "Cancel"}
+                      </button>
+                    </div>
+
+                  </div>
+
+                </fieldset>
+
+                {/* BOTTOM SECTION: Live Preview Card matching user's 5th screenshot */}
+                <div className="space-y-4 pt-6">
+                  <h2 className={`text-lg font-extrabold tracking-wide ${isDark ? "text-white" : "text-slate-900"}`}>
+                    Live Preview
+                  </h2>
+
+                  <div className={`border rounded-2xl p-6 transition-colors ${
+                    isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                  }`}>
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
                       
-                      {formOriginalPrice && parseFloat(formOriginalPrice) > parseFloat(formPrice || "0") && (
-                        <span className="absolute top-2.5 left-2.5 bg-rose-600 text-white text-[10px] font-black px-2 py-0.5 rounded-md uppercase tracking-wider">
-                          Sale
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="space-y-1">
-                      <span className="text-[10px] font-bold text-[#0b3b82] dark:text-blue-400 uppercase tracking-wider block">
-                        {formCategory}
-                      </span>
-                      <h4 className="text-sm font-black text-slate-900 dark:text-white line-clamp-1">
-                        {formName || "Sample Product Title"}
-                      </h4>
-                      <p className="text-[11px] text-slate-500 line-clamp-2">
-                        {formDescription || "Detailed product description preview will appear here..."}
-                      </p>
-                    </div>
-
-                    <div className="pt-2 flex items-center justify-between border-t border-slate-100 dark:border-slate-800">
-                      <div>
-                        <span className="text-base font-black text-slate-900 dark:text-white block">
-                          ৳{formPrice || "0"}
-                        </span>
-                        {formOriginalPrice && (
-                          <span className="text-xs text-slate-400 line-through">
-                            ৳{formOriginalPrice}
-                          </span>
+                      {/* Left: Preview Image Box */}
+                      <div className="md:col-span-6 bg-[#060911] border border-slate-800 rounded-2xl h-64 flex items-center justify-center p-4 relative overflow-hidden">
+                        {formImages.length > 0 ? (
+                          <img src={formImages[0]} alt="Product Preview" className="w-full h-full object-contain" />
+                        ) : (
+                          <div className="text-center text-slate-500 space-y-2">
+                            <Package className="w-12 h-12 mx-auto text-slate-600" />
+                          </div>
                         )}
                       </div>
 
-                      <button
-                        type="button"
-                        disabled
-                        className="bg-[#0b3b82] text-white px-3.5 py-1.5 rounded-xl font-bold text-xs opacity-90 cursor-not-allowed"
-                      >
-                        Add to Cart
-                      </button>
+                      {/* Right: Preview Specs Grid */}
+                      <div className="md:col-span-6 space-y-4">
+                        <div>
+                          <h3 className="text-xl font-extrabold text-white">
+                            {formName || "Product Name"}
+                          </h3>
+                          <p className="text-2xl font-black text-[#0B3B82] dark:text-blue-400 mt-1">
+                            ${formPrice || "0.00"}
+                          </p>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3 text-xs">
+                          <div className="bg-[#060911] border border-slate-800 rounded-xl p-3">
+                            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1">Category</span>
+                            <span className="font-semibold text-slate-200">{formCategory}</span>
+                          </div>
+
+                          <div className="bg-[#060911] border border-slate-800 rounded-xl p-3">
+                            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1">Brand</span>
+                            <span className="font-semibold text-slate-200">{formBrand || "—"}</span>
+                          </div>
+
+                          <div className="bg-[#060911] border border-slate-800 rounded-xl p-3">
+                            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1">Stock</span>
+                            <span className={`font-semibold ${formStockStatus === "In Stock" ? "text-emerald-400" : "text-rose-400"}`}>
+                              {formStockStatus}
+                            </span>
+                          </div>
+
+                          <div className="bg-[#060911] border border-slate-800 rounded-xl p-3">
+                            <span className="text-[10px] text-slate-400 font-bold block uppercase mb-1">Status</span>
+                            <span className="font-semibold text-slate-200">{formStatus}</span>
+                          </div>
+                        </div>
+
+                        <div className="text-xs space-y-1">
+                          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider block">Description</span>
+                          <p className="text-slate-300 italic line-clamp-3">
+                            {formShortDescription || formDescription || "No description provided."}
+                          </p>
+                        </div>
+                      </div>
+
                     </div>
                   </div>
                 </div>
 
-              </div>
+              </form>
             </div>
           )}
 

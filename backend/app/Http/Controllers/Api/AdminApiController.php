@@ -352,23 +352,62 @@ class AdminApiController extends Controller
     // Product Endpoints
     public function products()
     {
-        return response()->json(Product::with('category')->latest()->get());
+        return response()->json(Product::with(['category', 'images'])->latest()->get());
     }
 
     public function storeProduct(Request $request)
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|unique:products,slug',
-            'category_id' => 'nullable|exists:categories,id',
+            'slug' => 'nullable|string',
+            'sku' => 'nullable|string|max:255',
+            'category_id' => 'required|exists:categories,id',
+            'sub_category' => 'nullable|string|max:255',
+            'brand' => 'nullable|string|max:255',
             'price' => 'required|numeric',
             'original_price' => 'nullable|numeric',
+            'cost_price' => 'nullable|numeric',
             'stock' => 'required|integer',
+            'sales_count' => 'nullable|integer',
+            'attributes_config' => 'nullable|array',
+            'status' => 'nullable|string',
+            'unit' => 'nullable|string',
+            'tax' => 'nullable|numeric',
+            'discount' => 'nullable|numeric',
+            'short_description' => 'nullable|string',
             'description' => 'nullable|string',
             'main_image' => 'nullable|string',
+            'gallery_images' => 'nullable|array',
+            'is_organic' => 'nullable|boolean',
+            'is_bestseller' => 'nullable|boolean',
+            'is_new' => 'nullable|boolean',
+            'is_featured' => 'nullable|boolean',
+            'meta_title' => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string',
+            'meta_keywords' => 'nullable|string|max:255',
         ]);
 
+        if (empty($validated['slug'])) {
+            $validated['slug'] = \Illuminate\Support\Str::slug($validated['name']) . '-' . time();
+        }
+
+        if (empty($validated['status'])) {
+            $validated['status'] = $validated['stock'] > 0 ? 'In Stock' : 'Out Of Stock';
+        }
+
         $product = Product::create($validated);
+        
+        if ($request->has('gallery_images') && is_array($request->gallery_images)) {
+            foreach ($request->gallery_images as $image) {
+                if ($image) {
+                    \App\Models\ProductImage::create([
+                        'product_id' => $product->id,
+                        'image_path' => $image,
+                    ]);
+                }
+            }
+        }
+
         return response()->json(['status' => 'success', 'product' => $product], 201);
     }
 
@@ -378,16 +417,52 @@ class AdminApiController extends Controller
 
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'slug' => 'required|string|unique:products,slug,' . $id,
-            'category_id' => 'nullable|exists:categories,id',
+            'slug' => 'nullable|string',
+            'sku' => 'nullable|string|max:255',
+            'category_id' => 'required|exists:categories,id',
+            'sub_category' => 'nullable|string|max:255',
+            'brand' => 'nullable|string|max:255',
             'price' => 'required|numeric',
             'original_price' => 'nullable|numeric',
+            'cost_price' => 'nullable|numeric',
             'stock' => 'required|integer',
+            'sales_count' => 'nullable|integer',
+            'attributes_config' => 'nullable|array',
+            'status' => 'nullable|string',
+            'unit' => 'nullable|string',
+            'tax' => 'nullable|numeric',
+            'discount' => 'nullable|numeric',
+            'short_description' => 'nullable|string',
             'description' => 'nullable|string',
             'main_image' => 'nullable|string',
+            'gallery_images' => 'nullable|array',
+            'is_organic' => 'nullable|boolean',
+            'is_bestseller' => 'nullable|boolean',
+            'is_new' => 'nullable|boolean',
+            'is_featured' => 'nullable|boolean',
+            'meta_title' => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string',
+            'meta_keywords' => 'nullable|string|max:255',
         ]);
 
+        if (empty($validated['slug'])) {
+            $validated['slug'] = \Illuminate\Support\Str::slug($validated['name']) . '-' . time();
+        }
+
         $product->update($validated);
+        
+        if ($request->has('gallery_images') && is_array($request->gallery_images)) {
+            $product->images()->delete();
+            foreach ($request->gallery_images as $image) {
+                if ($image) {
+                    \App\Models\ProductImage::create([
+                        'product_id' => $product->id,
+                        'image_path' => $image,
+                    ]);
+                }
+            }
+        }
+
         return response()->json(['status' => 'success', 'product' => $product]);
     }
 
