@@ -37,6 +37,11 @@ Route::prefix('v1')->group(function () {
     Route::put('/reviews/{id}', [AdminApiController::class, 'updateReview']);
     Route::delete('/reviews/{id}', [AdminApiController::class, 'deleteReview']);
 
+    Route::get('/attributes', [AdminApiController::class, 'attributes']);
+    Route::post('/attributes', [AdminApiController::class, 'storeAttribute']);
+    Route::put('/attributes/{id}', [AdminApiController::class, 'updateAttribute']);
+    Route::delete('/attributes/{id}', [AdminApiController::class, 'deleteAttribute']);
+
     // Protected Admin Routes (Requires Sanctum Bearer Token & Admin Role)
     Route::middleware(['auth:sanctum', \App\Http\Middleware\EnsureAdminUser::class])->group(function () {
         Route::get('/admin/metrics', [AdminApiController::class, 'dashboardMetrics']);
@@ -54,6 +59,11 @@ Route::prefix('v1')->group(function () {
         Route::post('/admin/reviews', [AdminApiController::class, 'storeReview']);
         Route::put('/admin/reviews/{id}', [AdminApiController::class, 'updateReview']);
         Route::delete('/admin/reviews/{id}', [AdminApiController::class, 'deleteReview']);
+
+        Route::get('/admin/attributes', [AdminApiController::class, 'attributes']);
+        Route::post('/admin/attributes', [AdminApiController::class, 'storeAttribute']);
+        Route::put('/admin/attributes/{id}', [AdminApiController::class, 'updateAttribute']);
+        Route::delete('/admin/attributes/{id}', [AdminApiController::class, 'deleteAttribute']);
 
         Route::get('/admin/products', [AdminApiController::class, 'products']);
         Route::post('/admin/products', [AdminApiController::class, 'storeProduct']);

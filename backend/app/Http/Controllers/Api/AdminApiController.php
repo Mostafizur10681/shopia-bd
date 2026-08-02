@@ -9,6 +9,7 @@ use App\Models\Order;
 use App\Models\Category;
 use App\Models\SubCategory;
 use App\Models\Review;
+use App\Models\Attribute;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -267,6 +268,52 @@ class AdminApiController extends Controller
         $review->delete();
 
         return response()->json(['status' => 'success', 'message' => 'Review deleted successfully']);
+    }
+
+    // Attribute Endpoints
+    public function attributes()
+    {
+        return response()->json(Attribute::latest()->get());
+    }
+
+    public function storeAttribute(Request $request)
+    {
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'values' => 'nullable|array',
+            'status' => 'nullable|in:Active,Inactive',
+            'image' => 'nullable|string',
+        ]);
+
+        if (empty($validated['status'])) {
+            $validated['status'] = 'Active';
+        }
+
+        $attribute = Attribute::create($validated);
+        return response()->json(['status' => 'success', 'attribute' => $attribute], 201);
+    }
+
+    public function updateAttribute(Request $request, $id)
+    {
+        $attribute = Attribute::findOrFail($id);
+
+        $validated = $request->validate([
+            'name' => 'required|string|max:255',
+            'values' => 'nullable|array',
+            'status' => 'required|in:Active,Inactive',
+            'image' => 'nullable|string',
+        ]);
+
+        $attribute->update($validated);
+        return response()->json(['status' => 'success', 'attribute' => $attribute]);
+    }
+
+    public function deleteAttribute($id)
+    {
+        $attribute = Attribute::findOrFail($id);
+        $attribute->delete();
+
+        return response()->json(['status' => 'success', 'message' => 'Attribute deleted successfully']);
     }
 
     // Public Product Endpoints

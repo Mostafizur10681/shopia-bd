@@ -76,6 +76,9 @@ const menuToRouteMap: Record<string, string> = {
   "Sub Category": "/sub-category",
   "Add Sub Category": "/add-sub-category",
   "Edit Sub Category": "/edit-sub-category",
+  "Attributes": "/attributes",
+  "Add Attributes": "/add-attributes",
+  "Edit Attributes": "/edit-attributes",
   "Order List": "/order-list",
   "Payment Status": "/payment-status",
   "Customers": "/customers",
@@ -206,9 +209,73 @@ export default function AdminDashboardPage() {
     }
   };
 
+  // Attribute Management & Form States
+  const [attributesList, setAttributesList] = useState<any[]>([]);
+  const [searchAttributeQuery, setSearchAttributeQuery] = useState("");
+  const [statusAttributeFilter, setStatusAttributeFilter] = useState("All");
+
+  const [editingAttributeId, setEditingAttributeId] = useState<number | null>(null);
+  const [attributeName, setAttributeName] = useState("");
+  const [attributeStatus, setAttributeStatus] = useState("Active");
+  const [attributeValues, setAttributeValues] = useState<string[]>([]);
+  const [newAttributeValueInput, setNewAttributeValueInput] = useState("");
+  const [attributeImage, setAttributeImage] = useState("");
+
+  const resetAttributeForm = () => {
+    setEditingAttributeId(null);
+    setAttributeName("");
+    setAttributeStatus("Active");
+    setAttributeValues([]);
+    setNewAttributeValueInput("");
+    setAttributeImage("");
+  };
+
+  const fetchAttributes = async () => {
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (admin?.token) headers["Authorization"] = `Bearer ${admin.token}`;
+      let res = await fetch("http://127.0.0.1:8000/api/v1/attributes", { headers });
+      if (!res.ok) {
+        res = await fetch("http://127.0.0.1:8000/api/v1/admin/attributes", { headers });
+      }
+      if (res.ok) {
+        const data = await res.json();
+        const apiAttributes = Array.isArray(data) ? data : data.attributes || [];
+        setAttributesList(apiAttributes);
+
+        if (editIdParam && pathname === "/edit-attributes") {
+          const target = apiAttributes.find((attr: any) => attr.id.toString() === editIdParam);
+          if (target) {
+            setEditingAttributeId(target.id);
+            setAttributeName(target.name);
+            setAttributeStatus(target.status || "Active");
+            setAttributeValues(Array.isArray(target.values) ? target.values : []);
+            setAttributeImage(target.image || "");
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Backend API offline for attributes", e);
+    }
+  };
+
   useEffect(() => {
     fetchReviews();
+    fetchAttributes();
   }, []);
+
+  useEffect(() => {
+    if (pathname === "/edit-attributes" && editIdParam && attributesList.length > 0) {
+      const target = attributesList.find((attr: any) => attr.id.toString() === editIdParam);
+      if (target) {
+        setEditingAttributeId(target.id);
+        setAttributeName(target.name);
+        setAttributeStatus(target.status || "Active");
+        setAttributeValues(Array.isArray(target.values) ? target.values : []);
+        setAttributeImage(target.image || "");
+      }
+    }
+  }, [pathname, editIdParam, attributesList]);
 
   useEffect(() => {
     if (pathname === "/edit-review" && editIdParam && reviewsList.length > 0) {
@@ -378,6 +445,31 @@ export default function AdminDashboardPage() {
       isOpen: true,
       review,
     });
+  };
+
+  // View Attribute Modal State
+  const [viewAttributeModal, setViewAttributeModal] = useState<{
+    isOpen: boolean;
+    attribute: any | null;
+  }>({
+    isOpen: false,
+    attribute: null,
+  });
+
+  const handleViewAttributeClick = (attribute: any) => {
+    setViewAttributeModal({
+      isOpen: true,
+      attribute,
+    });
+  };
+
+  const handleEditAttributeClick = (attribute: any) => {
+    setEditingAttributeId(attribute.id);
+    setAttributeName(attribute.name);
+    setAttributeStatus(attribute.status || "Active");
+    setAttributeValues(Array.isArray(attribute.values) ? attribute.values : []);
+    setAttributeImage(attribute.image || "");
+    router.push(`/edit-attributes?id=${attribute.id}`);
   };
 
   const handleEditReviewClick = (review: any) => {
@@ -774,6 +866,124 @@ export default function AdminDashboardPage() {
     );
   };
 
+  const handleSaveAttribute = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!attributeName.trim()) {
+      setErrorMessage("Attribute Name is required.");
+      setTimeout(() => setErrorMessage(null), 8000);
+      return;
+    }
+
+    const headers: Record<string, string> = { "Content-Type": "application/json" };
+    if (admin?.token) headers["Authorization"] = `Bearer ${admin.token}`;
+
+    const attrData = {
+      name: attributeName.trim(),
+      values: attributeValues,
+      status: attributeStatus,
+      image: attributeImage || null
+    };
+
+    if (editingAttributeId) {
+      try {
+        let res = await fetch(`http://127.0.0.1:8000/api/v1/attributes/${editingAttributeId}`, {
+          method: "PUT",
+          headers,
+          body: JSON.stringify(attrData)
+        });
+        if (!res.ok) {
+          res = await fetch(`http://127.0.0.1:8000/api/v1/admin/attributes/${editingAttributeId}`, {
+            method: "PUT",
+            headers,
+            body: JSON.stringify(attrData)
+          });
+        }
+        if (res.ok) {
+          await fetchAttributes();
+          setSuccessMessage("Attribute updated successfully!");
+          setTimeout(() => {
+            resetAttributeForm();
+            handleMenuChange("Attributes");
+          }, 1500);
+          setTimeout(() => setSuccessMessage(null), 8000);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          setErrorMessage(errData.message || "Failed to update attribute.");
+          setTimeout(() => setErrorMessage(null), 8000);
+        }
+      } catch (err) {
+        setErrorMessage("Network error: Server is unreachable.");
+        setTimeout(() => setErrorMessage(null), 8000);
+      }
+    } else {
+      try {
+        let res = await fetch("http://127.0.0.1:8000/api/v1/attributes", {
+          method: "POST",
+          headers,
+          body: JSON.stringify(attrData)
+        });
+        if (!res.ok) {
+          res = await fetch("http://127.0.0.1:8000/api/v1/admin/attributes", {
+            method: "POST",
+            headers,
+            body: JSON.stringify(attrData)
+          });
+        }
+        if (res.ok) {
+          await fetchAttributes();
+          setSuccessMessage("New attribute created successfully!");
+          setTimeout(() => {
+            resetAttributeForm();
+            handleMenuChange("Attributes");
+          }, 1500);
+          setTimeout(() => setSuccessMessage(null), 8000);
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          setErrorMessage(errData.message || "Failed to create attribute.");
+          setTimeout(() => setErrorMessage(null), 8000);
+        }
+      } catch (err) {
+        setErrorMessage("Network error: Server is unreachable.");
+        setTimeout(() => setErrorMessage(null), 8000);
+      }
+    }
+  };
+
+  const handleDeleteAttribute = (id: number) => {
+    triggerConfirmation(
+      "Delete Attribute",
+      "Are you sure you want to delete this attribute classification? This action cannot be undone.",
+      async () => {
+        try {
+          const headers: Record<string, string> = { "Content-Type": "application/json" };
+          if (admin?.token) headers["Authorization"] = `Bearer ${admin.token}`;
+          let res = await fetch(`http://127.0.0.1:8000/api/v1/attributes/${id}`, {
+            method: "DELETE",
+            headers
+          });
+          if (!res.ok) {
+            res = await fetch(`http://127.0.0.1:8000/api/v1/admin/attributes/${id}`, {
+              method: "DELETE",
+              headers
+            });
+          }
+          if (res.ok) {
+            setAttributesList(prev => prev.filter(a => a.id !== id));
+            setSuccessMessage("Attribute deleted successfully!");
+            setTimeout(() => setSuccessMessage(null), 8000);
+          } else {
+            const errData = await res.json().catch(() => ({}));
+            setErrorMessage(errData.message || "Failed to delete attribute.");
+            setTimeout(() => setErrorMessage(null), 8000);
+          }
+        } catch (e) {
+          setErrorMessage("Network error: Failed to delete attribute.");
+          setTimeout(() => setErrorMessage(null), 8000);
+        }
+      }
+    );
+  };
+
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const resetForm = () => {
@@ -1051,6 +1261,33 @@ export default function AdminDashboardPage() {
               }`}
             >
               <PlusCircle className="w-4 h-4" /> Add Sub Category
+            </button>
+          </div>
+
+          {/* Attributes Section */}
+          <div className="space-y-1">
+            <span className={`px-3 text-[10px] font-bold uppercase tracking-wider block ${isDark ? "text-slate-500" : "text-slate-400"}`}>Attributes</span>
+            <button
+              type="button"
+              onClick={() => { handleMenuChange("Attributes"); setMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition ${
+                activeMenu === "Attributes"
+                  ? "bg-[#0b3b82] text-white font-bold"
+                  : isDark ? "text-slate-400 hover:bg-slate-800/60 hover:text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              <SlidersHorizontal className="w-4 h-4" /> Attributes
+            </button>
+            <button
+              type="button"
+              onClick={() => { resetAttributeForm(); handleMenuChange("Add Attributes"); setMobileMenuOpen(false); }}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-xl transition ${
+                activeMenu === "Add Attributes"
+                  ? "bg-[#0b3b82] text-white font-bold"
+                  : isDark ? "text-slate-400 hover:bg-slate-800/60 hover:text-white" : "text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+              }`}
+            >
+              <PlusCircle className="w-4 h-4" /> Add Attributes
             </button>
           </div>
 
@@ -2598,6 +2835,489 @@ export default function AdminDashboardPage() {
             </div>
           )}
 
+          {/* VIEW: ATTRIBUTES LIST (Matching User Reference Image Design) */}
+          {(activeMenu === "Attributes") && (
+            <div className="space-y-6">
+              {/* Breadcrumb */}
+              <div className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
+                <span className="hover:underline cursor-pointer" onClick={() => handleMenuChange("Dashboard")}>Dashboard</span>
+                <span>&gt;</span>
+                <span className={isDark ? "text-slate-200" : "text-slate-700"}>Attributes</span>
+              </div>
+
+              {/* Title & Add Attribute Header Button */}
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-[#0B3B82]/10 text-[#0B3B82] dark:bg-emerald-500/10 dark:text-emerald-400 flex items-center justify-center font-bold">
+                      <SlidersHorizontal className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h1 className={`text-xl sm:text-2xl font-black tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+                        Attributes
+                      </h1>
+                      <p className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                        Manage product attributes and values
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => { resetAttributeForm(); handleMenuChange("Add Attributes"); }}
+                  className="bg-[#0B3B82] hover:bg-[#0B3B82]/90 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg transition cursor-pointer"
+                >
+                  <PlusCircle className="w-4 h-4" /> Add Attribute
+                </button>
+              </div>
+
+              {/* Filter Controls Bar matching user image specs */}
+              <div className="flex flex-col md:flex-row items-stretch md:items-center gap-3">
+                <div className="relative flex-1">
+                  <input
+                    type="text"
+                    placeholder="Search attributes..."
+                    value={searchAttributeQuery}
+                    onChange={(e) => setSearchAttributeQuery(e.target.value)}
+                    className={`w-full border rounded-xl pl-9 pr-4 py-2.5 text-xs transition focus:outline-none ${
+                      isDark
+                        ? "bg-[#080d1a] border-slate-800 text-slate-200 focus:border-[#0B3B82] placeholder:text-slate-500"
+                        : "bg-white border-slate-200 text-slate-800 focus:border-[#0B3B82] placeholder:text-slate-400"
+                    }`}
+                  />
+                  <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                </div>
+
+                <div className="flex items-center gap-2 text-xs font-bold shrink-0">
+                  <span className={`text-[11px] uppercase tracking-wider ${isDark ? "text-slate-400" : "text-slate-500"}`}>STATUS:</span>
+                  <select
+                    value={statusAttributeFilter}
+                    onChange={(e) => setStatusAttributeFilter(e.target.value)}
+                    className={`border rounded-xl px-3 py-2 focus:outline-none transition ${
+                      isDark ? "bg-[#080d1a] border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"
+                    }`}
+                  >
+                    <option value="All">All</option>
+                    <option value="Active">Active</option>
+                    <option value="Inactive">Inactive</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Main Table / Empty State Container */}
+              <div className={`border rounded-2xl p-6 transition-colors ${
+                isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+              }`}>
+                {(() => {
+                  const filteredAttributes = attributesList.filter((attr) => {
+                    const matchesSearch = (attr.name || "").toLowerCase().includes(searchAttributeQuery.toLowerCase()) ||
+                      (Array.isArray(attr.values) ? attr.values.join(" ") : "").toLowerCase().includes(searchAttributeQuery.toLowerCase());
+                    const matchesStatus = statusAttributeFilter === "All" || attr.status === statusAttributeFilter;
+                    return matchesSearch && matchesStatus;
+                  });
+
+                  if (filteredAttributes.length === 0) {
+                    return (
+                      <div className="py-12 text-center space-y-4">
+                        <div className="w-14 h-14 rounded-2xl bg-[#0B3B82]/10 text-[#0B3B82] dark:bg-emerald-500/10 dark:text-emerald-400 flex items-center justify-center mx-auto">
+                          <SlidersHorizontal className="w-7 h-7" />
+                        </div>
+                        <div>
+                          <h3 className={`text-base font-bold ${isDark ? "text-white" : "text-slate-900"}`}>No Attributes Found</h3>
+                          <p className="text-xs text-slate-400 max-w-sm mx-auto mt-1">
+                            Configure product attributes like Size, Color, Weight or Material.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => { resetAttributeForm(); handleMenuChange("Add Attributes"); }}
+                          className="bg-[#0B3B82] hover:bg-[#0B3B82]/90 text-white font-bold text-xs px-5 py-2.5 rounded-xl shadow-lg transition cursor-pointer inline-flex items-center gap-2"
+                        >
+                          Add First Attribute
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <>
+                      {/* Mobile & Tablet Card Layout (< lg breakpoint) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 lg:hidden">
+                        {filteredAttributes.map((attr) => {
+                          const valList = Array.isArray(attr.values) ? attr.values : [];
+                          const displayVals = valList.slice(0, 4);
+                          const extraCount = valList.length > 4 ? valList.length - 4 : 0;
+
+                          return (
+                            <div
+                              key={attr.id}
+                              className={`p-4 rounded-xl border space-y-3.5 transition ${
+                                isDark ? "bg-[#060911]/60 border-slate-800/80 hover:border-slate-700" : "bg-slate-50/80 border-slate-200"
+                              }`}
+                            >
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-3">
+                                  {attr.image ? (
+                                    <div className="w-10 h-10 rounded-xl overflow-hidden relative border border-slate-700 shrink-0">
+                                      <img src={attr.image} alt={attr.name} className="object-cover w-full h-full" />
+                                    </div>
+                                  ) : (
+                                    <div className="w-10 h-10 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-300 font-bold shrink-0">
+                                      <SlidersHorizontal className="w-5 h-5 text-emerald-400" />
+                                    </div>
+                                  )}
+                                  <div>
+                                    <h3 className={`font-extrabold text-sm ${isDark ? "text-white" : "text-slate-900"}`}>{attr.name}</h3>
+                                    <span className="text-[10px] text-slate-400 font-mono">ID: #{attr.id}</span>
+                                  </div>
+                                </div>
+
+                                <span className={`font-bold text-[10px] px-2.5 py-0.5 rounded-full border ${
+                                  attr.status === "Active" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                }`}>
+                                  {attr.status || "Active"}
+                                </span>
+                              </div>
+
+                              <div>
+                                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-1">Configured Values</span>
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                  {displayVals.map((v: string, idx: number) => (
+                                    <span key={idx} className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 rounded-md text-[10px] font-semibold">
+                                      {v}
+                                    </span>
+                                  ))}
+                                  {extraCount > 0 && (
+                                    <span className="bg-slate-800 text-slate-400 border border-slate-700 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                                      +{extraCount} More
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center justify-between pt-2 border-t border-slate-800/60 text-xs">
+                                <div className="flex items-center gap-1 text-[11px] text-slate-400">
+                                  <Calendar className="w-3 h-3 text-slate-400" />
+                                  <span>{attr.created_at ? attr.created_at.split("T")[0] : new Date().toISOString().split("T")[0]}</span>
+                                </div>
+
+                                <div className="flex items-center gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleViewAttributeClick(attr)}
+                                    className={`p-2 rounded-lg transition border ${
+                                      isDark ? "border-slate-800 text-slate-300 hover:bg-slate-800" : "border-slate-200 text-slate-700 hover:bg-slate-200"
+                                    }`}
+                                    title="View Attribute Details"
+                                  >
+                                    <Eye className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleEditAttributeClick(attr)}
+                                    className="p-2 rounded-lg transition border border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                                    title="Edit Attribute"
+                                  >
+                                    <Edit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteAttribute(attr.id)}
+                                    className="p-2 rounded-lg transition border border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
+                                    title="Delete Attribute"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Desktop Full Data Table (lg+ breakpoint) */}
+                      <div className="hidden lg:block overflow-x-auto">
+                        <table className="w-full text-left text-xs">
+                          <thead>
+                            <tr className={`border-b ${isDark ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-500"}`}>
+                              <th className="py-3.5 px-4 font-bold">Image</th>
+                              <th className="py-3.5 px-4 font-bold">Attribute Name</th>
+                              <th className="py-3.5 px-4 font-bold">Attribute Values</th>
+                              <th className="py-3.5 px-4 font-bold">Status</th>
+                              <th className="py-3.5 px-4 font-bold">Created Date</th>
+                              <th className="py-3.5 px-4 font-bold text-right">Action</th>
+                            </tr>
+                          </thead>
+                          <tbody className={`divide-y ${isDark ? "divide-slate-800/60 text-slate-300" : "divide-slate-100 text-slate-700"}`}>
+                            {filteredAttributes.map((attr) => {
+                              const valList = Array.isArray(attr.values) ? attr.values : [];
+                              const displayVals = valList.slice(0, 5);
+                              const extraCount = valList.length > 5 ? valList.length - 5 : 0;
+
+                              return (
+                                <tr key={attr.id} className={isDark ? "hover:bg-slate-800/30 transition" : "hover:bg-slate-50 transition"}>
+                                  <td className="py-3.5 px-4">
+                                    {attr.image ? (
+                                      <div className="w-9 h-9 rounded-xl overflow-hidden relative border border-slate-700">
+                                        <img src={attr.image} alt={attr.name} className="object-cover w-full h-full" />
+                                      </div>
+                                    ) : (
+                                      <div className="w-9 h-9 rounded-xl bg-slate-800/80 border border-slate-700 flex items-center justify-center text-slate-300 font-bold">
+                                        <SlidersHorizontal className="w-4 h-4 text-emerald-400" />
+                                      </div>
+                                    )}
+                                  </td>
+                                  <td className="py-3.5 px-4 font-extrabold text-white text-sm">
+                                    {attr.name}
+                                  </td>
+                                  <td className="py-3.5 px-4">
+                                    <div className="flex flex-wrap items-center gap-1.5">
+                                      {displayVals.map((v: string, idx: number) => (
+                                        <span key={idx} className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2.5 py-1 rounded-md text-[11px] font-semibold">
+                                          {v}
+                                        </span>
+                                      ))}
+                                      {extraCount > 0 && (
+                                        <span className="bg-slate-800 text-slate-400 border border-slate-700 px-2 py-1 rounded-md text-[10px] font-bold">
+                                          +{extraCount} More
+                                        </span>
+                                      )}
+                                    </div>
+                                  </td>
+                                  <td className="py-3.5 px-4">
+                                    <span className={`font-bold text-[10px] px-2.5 py-1 rounded-full border ${
+                                      attr.status === "Active" ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border-rose-500/20"
+                                    }`}>
+                                      {attr.status || "Active"}
+                                    </span>
+                                  </td>
+                                  <td className="py-3.5 px-4 text-slate-400">
+                                    <div className="flex items-center gap-1.5">
+                                      <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                                      <span>{attr.created_at ? attr.created_at.split("T")[0] : new Date().toISOString().split("T")[0]}</span>
+                                    </div>
+                                  </td>
+                                  <td className="py-3.5 px-4 text-right">
+                                    <div className="flex items-center justify-end gap-2">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleViewAttributeClick(attr)}
+                                        className={`p-2 rounded-xl transition border ${
+                                          isDark ? "border-slate-800 text-slate-300 hover:bg-slate-800" : "border-slate-200 text-slate-700 hover:bg-slate-100"
+                                        }`}
+                                        title="View Attribute Details"
+                                      >
+                                        <Eye className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleEditAttributeClick(attr)}
+                                        className="p-2 rounded-xl transition border border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                                        title="Edit Attribute"
+                                      >
+                                        <Edit className="w-3.5 h-3.5" />
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleDeleteAttribute(attr.id)}
+                                        className="p-2 rounded-xl transition border border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
+                                        title="Delete Attribute"
+                                      >
+                                        <Trash2 className="w-3.5 h-3.5" />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* VIEW: ADD & EDIT ATTRIBUTES (Matching User Second Reference Image Design) */}
+          {(activeMenu === "Add Attributes" || activeMenu === "Edit Attributes" || pathname === "/add-attributes" || pathname === "/edit-attributes") && (
+            <div className="space-y-6">
+              {/* Breadcrumb & Header */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-slate-400 font-semibold flex items-center gap-1.5 mb-1">
+                    <span className="hover:underline cursor-pointer" onClick={() => handleMenuChange("Dashboard")}>Dashboard</span>
+                    <span>&gt;</span>
+                    <span className="hover:underline cursor-pointer" onClick={() => handleMenuChange("Attributes")}>Attributes</span>
+                    <span>&gt;</span>
+                    <span className={isDark ? "text-slate-200" : "text-slate-700"}>{editingAttributeId ? "Edit Attributes" : "Add Attributes"}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-lg bg-[#0B3B82]/10 text-[#0B3B82] dark:bg-emerald-500/10 dark:text-emerald-400 flex items-center justify-center font-bold">
+                      <SlidersHorizontal className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <h1 className={`text-xl sm:text-2xl font-black tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+                        {editingAttributeId ? "Edit Attributes" : "Add Attributes"}
+                      </h1>
+                      <p className={`text-xs ${isDark ? "text-slate-400" : "text-slate-500"}`}>
+                        Create new attribute classifications and configure their values.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => handleMenuChange("Attributes")}
+                  className="text-xs text-slate-400 hover:text-white font-semibold flex items-center gap-1 cursor-pointer"
+                >
+                  &larr; Back to List
+                </button>
+              </div>
+
+              {/* Form Grid Container matching user 2nd image layout */}
+              <form onSubmit={handleSaveAttribute} className="max-w-4xl space-y-6">
+                {/* 1. General Information Card */}
+                <div className={`border rounded-2xl p-6 space-y-4 transition-colors ${
+                  isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                }`}>
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-800/50">
+                    <Info className="w-4 h-4 text-emerald-400" />
+                    <h2 className={`text-sm font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                      General Information
+                    </h2>
+                  </div>
+
+                  <div className="space-y-1.5 text-xs">
+                    <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+                      Attribute Name <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Size, Color, Material, Brand"
+                      value={attributeName}
+                      onChange={(e) => setAttributeName(e.target.value)}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-xs focus:outline-none transition ${
+                        isDark ? "bg-[#060911] border-slate-800 text-slate-200 focus:border-[#0B3B82]" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-[#0B3B82]"
+                      }`}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5 text-xs">
+                    <label className={`font-semibold block ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+                      Status
+                    </label>
+                    <select
+                      value={attributeStatus}
+                      onChange={(e) => setAttributeStatus(e.target.value)}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-xs focus:outline-none transition ${
+                        isDark ? "bg-[#060911] border-slate-800 text-slate-200 focus:border-[#0B3B82]" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-[#0B3B82]"
+                      }`}
+                    >
+                      <option value="Active">Active</option>
+                      <option value="Inactive">Inactive</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* 2. Attribute Values Card */}
+                <div className={`border rounded-2xl p-6 space-y-4 transition-colors ${
+                  isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"
+                }`}>
+                  <div className="flex items-center gap-2 pb-2 border-b border-slate-800/50">
+                    <Tag className="w-4 h-4 text-emerald-400" />
+                    <div>
+                      <h2 className={`text-sm font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                        Attribute Values <span className="text-rose-500">*</span>
+                      </h2>
+                      <p className="text-[11px] text-slate-400">
+                        Define different options for this attribute. Type a value below and hit Enter or click the "+" button.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="text"
+                      placeholder="e.g. Red, XL, Cotton, Nike"
+                      value={newAttributeValueInput}
+                      onChange={(e) => setNewAttributeValueInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          if (newAttributeValueInput.trim()) {
+                            setAttributeValues([...attributeValues, newAttributeValueInput.trim()]);
+                            setNewAttributeValueInput("");
+                          }
+                        }
+                      }}
+                      className={`flex-1 border rounded-xl px-4 py-2.5 text-xs focus:outline-none transition ${
+                        isDark ? "bg-[#060911] border-slate-800 text-slate-200 focus:border-[#0B3B82]" : "bg-slate-50 border-slate-200 text-slate-800 focus:border-[#0B3B82]"
+                      }`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (newAttributeValueInput.trim()) {
+                          setAttributeValues([...attributeValues, newAttributeValueInput.trim()]);
+                          setNewAttributeValueInput("");
+                        }
+                      }}
+                      className="bg-[#0B3B82] hover:bg-[#0B3B82]/90 text-white w-10 h-10 rounded-xl flex items-center justify-center shrink-0 cursor-pointer"
+                    >
+                      <PlusCircle className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Added Values Tag List */}
+                  {attributeValues.length > 0 ? (
+                    <div className="flex flex-wrap items-center gap-2 pt-2">
+                      {attributeValues.map((val, idx) => (
+                        <span key={idx} className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2">
+                          {val}
+                          <button
+                            type="button"
+                            onClick={() => setAttributeValues(attributeValues.filter((_, i) => i !== idx))}
+                            className="hover:text-rose-400 transition cursor-pointer"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-center py-6 text-slate-500 text-xs italic">
+                      No values added yet. Define at least one attribute value.
+                    </p>
+                  )}
+                </div>
+
+                {/* Form Action Buttons */}
+                <div className="flex items-center justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => handleMenuChange("Attributes")}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-bold transition border ${
+                      isDark ? "border-slate-800 text-slate-300 hover:bg-slate-800" : "border-slate-200 text-slate-700 hover:bg-slate-100"
+                    }`}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="bg-[#0B3B82] hover:bg-[#0B3B82]/90 text-white font-bold text-xs px-6 py-2.5 rounded-xl shadow-lg transition cursor-pointer"
+                  >
+                    {editingAttributeId ? "Update Attribute" : "Save Attribute"}
+                  </button>
+                </div>
+              </form>
+            </div>
+          )}
+
           {/* VIEW: ADD & EDIT CATEGORY & ADD & EDIT SUB CATEGORY */}
           {(activeMenu === "Add Category" || activeMenu === "Edit Category" || activeMenu === "Add Sub Category" || activeMenu === "Edit Sub Category") && (
             <div className="space-y-6">
@@ -3354,6 +4074,93 @@ export default function AdminDashboardPage() {
                 className="bg-[#0B3B82] hover:bg-[#0B3B82]/90 text-white font-bold text-xs px-5 py-2 rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5"
               >
                 <Edit className="w-3.5 h-3.5" /> Edit Review
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* VIEW ATTRIBUTE DETAILS MODAL */}
+      {viewAttributeModal.isOpen && viewAttributeModal.attribute && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in">
+          <div className={`w-full max-w-lg rounded-2xl p-6 space-y-5 border shadow-2xl transition ${
+            isDark ? "bg-[#090d18] border-slate-800 text-slate-100" : "bg-white border-slate-200 text-slate-900"
+          }`}>
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800/60">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center font-bold">
+                  <SlidersHorizontal className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="font-extrabold text-base">Attribute Details</h3>
+                  <p className="text-[11px] text-slate-400">Viewing attribute classification &amp; values</p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewAttributeModal({ isOpen: false, attribute: null })}
+                className={`p-1.5 rounded-lg transition ${isDark ? "text-slate-400 hover:text-white hover:bg-slate-800" : "text-slate-500 hover:text-slate-800 hover:bg-slate-100"}`}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Modal Body Info */}
+            <div className="space-y-4 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div className={`p-3 rounded-xl border ${isDark ? "bg-[#060911] border-slate-800/80" : "bg-slate-50 border-slate-200"}`}>
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-1">Attribute Name</span>
+                  <span className="font-extrabold text-white text-sm">{viewAttributeModal.attribute.name}</span>
+                </div>
+
+                <div className={`p-3 rounded-xl border ${isDark ? "bg-[#060911] border-slate-800/80" : "bg-slate-50 border-slate-200"}`}>
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-1">Status</span>
+                  <span className={`font-bold text-[11px] px-2.5 py-0.5 rounded-full ${
+                    viewAttributeModal.attribute.status === "Active" ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                  }`}>
+                    {viewAttributeModal.attribute.status || "Active"}
+                  </span>
+                </div>
+              </div>
+
+              <div className={`p-3.5 rounded-xl border ${isDark ? "bg-[#060911] border-slate-800/80" : "bg-slate-50 border-slate-200"}`}>
+                <span className="text-[10px] text-slate-400 uppercase tracking-wider font-bold block mb-2">Configured Options / Values</span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {Array.isArray(viewAttributeModal.attribute.values) && viewAttributeModal.attribute.values.length > 0 ? (
+                    viewAttributeModal.attribute.values.map((v: string, idx: number) => (
+                      <span key={idx} className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-3 py-1 rounded-lg font-bold text-xs">
+                        {v}
+                      </span>
+                    ))
+                  ) : (
+                    <span className="text-slate-500 italic">No values defined.</span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800/60">
+              <button
+                type="button"
+                onClick={() => setViewAttributeModal({ isOpen: false, attribute: null })}
+                className={`px-4 py-2 rounded-xl text-xs font-bold transition border ${
+                  isDark ? "border-slate-800 text-slate-300 hover:bg-slate-800" : "border-slate-200 text-slate-700 hover:bg-slate-100"
+                }`}
+              >
+                Close
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  const attrToEdit = viewAttributeModal.attribute;
+                  setViewAttributeModal({ isOpen: false, attribute: null });
+                  handleEditAttributeClick(attrToEdit);
+                }}
+                className="bg-[#0B3B82] hover:bg-[#0B3B82]/90 text-white font-bold text-xs px-5 py-2 rounded-xl shadow-md transition cursor-pointer flex items-center gap-1.5"
+              >
+                <Edit className="w-3.5 h-3.5" /> Edit Attribute
               </button>
             </div>
           </div>
