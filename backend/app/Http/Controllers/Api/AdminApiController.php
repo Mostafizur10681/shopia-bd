@@ -488,4 +488,13 @@ class AdminApiController extends Controller
 
         return response()->json(['status' => 'success', 'order' => $order]);
     }
+
+    public function deleteOrder($id)
+    {
+        $order = Order::findOrFail($id);
+        $order->items()->delete();
+        $order->delete();
+
+        return response()->json(['status' => 'success', 'message' => 'Order deleted successfully']);
+    }
 }

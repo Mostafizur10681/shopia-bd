@@ -71,6 +71,7 @@ Route::prefix('v1')->group(function () {
         Route::delete('/admin/products/{id}', [AdminApiController::class, 'deleteProduct']);
         Route::get('/admin/orders', [AdminApiController::class, 'orders']);
         Route::put('/admin/orders/{id}/status', [AdminApiController::class, 'updateOrderStatus']);
+        Route::delete('/admin/orders/{id}', [AdminApiController::class, 'deleteOrder']);
     });
 
 });

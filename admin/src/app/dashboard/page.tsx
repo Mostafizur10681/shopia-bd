@@ -52,7 +52,9 @@ import {
   Calendar,
   Clock,
   Upload,
-  Image as ImageIcon
+  Image as ImageIcon,
+  ArrowLeft,
+  User
 } from "lucide-react";
 import {
   AreaChart,
@@ -528,6 +530,206 @@ export default function AdminDashboardPage() {
       isOpen: true,
       attribute,
     });
+  };
+
+  // Orders State & Handlers
+  const [ordersList, setOrdersList] = useState<any[]>([]);
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
+  const [orderStatusFilter, setOrderStatusFilter] = useState("All Statuses");
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [updatingOrderStatus, setUpdatingOrderStatus] = useState(false);
+  const [orderStatusUpdate, setOrderStatusUpdate] = useState("");
+
+  const fetchOrders = async () => {
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json", "Accept": "application/json" };
+      if (admin?.token) headers["Authorization"] = `Bearer ${admin.token}`;
+      const res = await fetch("http://127.0.0.1:8000/api/v1/admin/orders", { headers });
+      if (res.ok) {
+        const data = await res.json();
+        const arr = Array.isArray(data) ? data : data.orders || [];
+        setOrdersList(arr);
+      }
+    } catch (e) {
+      console.warn("Backend API offline for orders", e);
+    }
+  };
+
+  const handleUpdateOrderStatus = async () => {
+    if (!selectedOrder || !orderStatusUpdate) return;
+    setUpdatingOrderStatus(true);
+    try {
+      const headers: Record<string, string> = { "Content-Type": "application/json", "Accept": "application/json" };
+      if (admin?.token) headers["Authorization"] = `Bearer ${admin.token}`;
+      const res = await fetch(`http://127.0.0.1:8000/api/v1/admin/orders/${selectedOrder.id}/status`, {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ status: orderStatusUpdate }),
+      });
+      if (res.ok) {
+        setOrdersList(prev => prev.map(o => o.id === selectedOrder.id ? { ...o, status: orderStatusUpdate } : o));
+        setSelectedOrder((prev: any) => ({ ...prev, status: orderStatusUpdate }));
+        setSuccessMessage("Order status updated successfully!");
+        setTimeout(() => setSuccessMessage(null), 5000);
+      }
+    } catch (e) {
+      console.warn("Failed to update order status", e);
+    }
+    setUpdatingOrderStatus(false);
+  };
+
+  const handleDeleteOrder = (id: number) => {
+    triggerConfirmation(
+      "Delete Order",
+      "Are you sure you want to delete this order? This action cannot be undone.",
+      async () => {
+        try {
+          const headers: Record<string, string> = { "Content-Type": "application/json", "Accept": "application/json" };
+          if (admin?.token) headers["Authorization"] = `Bearer ${admin.token}`;
+          const res = await fetch(`http://127.0.0.1:8000/api/v1/admin/orders/${id}`, { method: "DELETE", headers });
+          if (res.ok) {
+            setOrdersList(prev => prev.filter(o => o.id !== id));
+            if (selectedOrder?.id === id) setSelectedOrder(null);
+            setSuccessMessage("Order deleted successfully!");
+            setTimeout(() => setSuccessMessage(null), 5000);
+          }
+        } catch (e) {
+          console.warn("Failed to delete order", e);
+        }
+      }
+    );
+  };
+
+  const handleDownloadInvoice = (order: any) => {
+    const items = order.items || [];
+    const subtotal = parseFloat(order.subtotal || "0").toFixed(2);
+    const shipping = parseFloat(order.shipping_fee || "0").toFixed(2);
+    const grandTotal = parseFloat(order.grand_total || "0").toFixed(2);
+    const date = order.created_at ? new Date(order.created_at).toLocaleString() : "—";
+    const paymentMethod = order.payment_method === "cod" ? "Cash on Delivery" : (order.payment_method || "—");
+
+    const itemRows = items.map((item: any) => `
+      <tr>
+        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;">${item.product_name || "—"}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:center;">${item.quantity}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right;">৳${parseFloat(item.unit_price || "0").toFixed(2)}</td>
+        <td style="padding:10px 12px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:700;">৳${parseFloat(item.total_price || "0").toFixed(2)}</td>
+      </tr>
+    `).join("");
+
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Invoice ${order.order_number}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1a1a2e; font-size: 13px; }
+    .invoice-wrap { max-width: 720px; margin: 40px auto; padding: 40px; border: 1px solid #e5e7eb; border-radius: 12px; box-shadow: 0 4px 24px rgba(0,0,0,0.07); }
+    .header { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 24px; border-bottom: 2px solid #0b3b82; margin-bottom: 28px; }
+    .brand h1 { font-size: 24px; font-weight: 900; color: #0b3b82; letter-spacing: -0.5px; }
+    .brand p { font-size: 11px; color: #6b7280; margin-top: 2px; }
+    .invoice-meta { text-align: right; }
+    .invoice-meta .invoice-title { font-size: 20px; font-weight: 800; color: #0b3b82; }
+    .invoice-meta p { font-size: 11px; color: #6b7280; margin-top: 4px; }
+    .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 28px; }
+    .info-box h3 { font-size: 10px; font-weight: 700; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 8px; }
+    .info-box p { font-size: 13px; color: #1a1a2e; line-height: 1.6; }
+    .info-box .bold { font-weight: 700; }
+    .status-row { display: flex; gap: 12px; margin-bottom: 28px; }
+    .badge { font-size: 11px; font-weight: 700; padding: 4px 12px; border-radius: 6px; }
+    .badge-fulfillment { background: #fef3c7; color: #92400e; }
+    .badge-paid { background: #d1fae5; color: #065f46; }
+    .badge-pending { background: #fef3c7; color: #92400e; }
+    table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+    thead tr { background: #f8fafc; }
+    th { padding: 10px 12px; font-size: 11px; font-weight: 700; color: #6b7280; text-transform: uppercase; letter-spacing: 0.6px; border-bottom: 2px solid #e5e7eb; }
+    th:last-child, th:nth-child(3), th:nth-child(2) { text-align: right; }
+    th:nth-child(2) { text-align: center; }
+    .totals { margin-left: auto; width: 280px; }
+    .totals-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; border-bottom: 1px solid #f0f0f0; }
+    .totals-row:last-child { border-bottom: none; padding-top: 12px; border-top: 2px solid #0b3b82; font-size: 15px; font-weight: 900; color: #0b3b82; }
+    .footer { text-align: center; padding-top: 24px; border-top: 1px solid #e5e7eb; margin-top: 28px; font-size: 11px; color: #9ca3af; }
+    @media print { .invoice-wrap { border: none; box-shadow: none; margin: 0; padding: 20px; } }
+  </style>
+</head>
+<body>
+  <div class="invoice-wrap">
+    <div class="header">
+      <div class="brand">
+        <h1>🛒 Shopia BD</h1>
+        <p>Fresh &amp; Organic Products</p>
+        <p style="margin-top:4px;color:#6b7280;">support@shopia-bd.com</p>
+      </div>
+      <div class="invoice-meta">
+        <div class="invoice-title">INVOICE</div>
+        <p><strong>${order.order_number}</strong></p>
+        <p>Date: ${date}</p>
+      </div>
+    </div>
+
+    <div class="info-grid">
+      <div class="info-box">
+        <h3>Bill To</h3>
+        <p class="bold">${order.customer_name || "—"}</p>
+        <p>${order.customer_email || ""}</p>
+        <p>${order.customer_phone || ""}</p>
+      </div>
+      <div class="info-box">
+        <h3>Ship To</h3>
+        <p class="bold">${order.customer_name || "—"}</p>
+        <p>${order.shipping_address || "—"}</p>
+        ${order.district ? `<p>${order.district}</p>` : ""}
+      </div>
+      <div class="info-box">
+        <h3>Payment Method</h3>
+        <p class="bold">${paymentMethod}</p>
+      </div>
+      <div class="info-box">
+        <h3>Order Status</h3>
+        <p class="bold">${order.status || "—"}</p>
+      </div>
+    </div>
+
+    <div class="status-row">
+      <span class="badge badge-fulfillment">Fulfillment: ${order.status || "—"}</span>
+      <span class="badge ${order.is_paid ? "badge-paid" : "badge-pending"}">Payment: ${order.is_paid ? "Paid" : "Pending"}</span>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Product</th>
+          <th style="text-align:center;">Qty</th>
+          <th style="text-align:right;">Unit Price</th>
+          <th style="text-align:right;">Total</th>
+        </tr>
+      </thead>
+      <tbody>${itemRows}</tbody>
+    </table>
+
+    <div class="totals">
+      <div class="totals-row"><span>Subtotal</span><span>৳${subtotal}</span></div>
+      <div class="totals-row"><span>Shipping</span><span>৳${shipping}</span></div>
+      <div class="totals-row"><span>Total Amount</span><span>৳${grandTotal}</span></div>
+    </div>
+
+    ${order.order_notes ? `<div style="margin-top:20px;padding:12px;background:#f8fafc;border-radius:8px;border-left:3px solid #0b3b82;"><p style="font-size:11px;font-weight:700;color:#6b7280;margin-bottom:4px;">ORDER NOTES</p><p style="color:#374151;">${order.order_notes}</p></div>` : ""}
+
+    <div class="footer">
+      <p>Thank you for shopping with <strong>Shopia BD</strong>! 🌿</p>
+      <p style="margin-top:4px;">This is a computer-generated invoice and does not require a signature.</p>
+    </div>
+  </div>
+  <script>window.onload = function() { window.print(); }</script>
+</body>
+</html>`;
+
+    const win = window.open("", "_blank", "width=800,height=900,scrollbars=yes");
+    if (win) {
+      win.document.write(html);
+      win.document.close();
+    }
   };
 
   const handleEditAttributeClick = (attribute: any) => {
@@ -1251,6 +1453,11 @@ export default function AdminDashboardPage() {
   useEffect(() => {
     setIsMounted(true);
     fetchCategories();
+    fetchProducts();
+    fetchReviews();
+    fetchAttributes();
+    fetchSubCategories();
+    fetchOrders();
     const savedTheme = localStorage.getItem("shopia_admin_theme") as "dark" | "light";
     if (savedTheme) {
       setTheme(savedTheme);
@@ -4656,6 +4863,384 @@ export default function AdminDashboardPage() {
                 </div>
 
               </form>
+            </div>
+          )}
+
+          {/* ORDER LIST SECTION */}
+          {activeMenu === "Order List" && !selectedOrder && (
+            <div className="space-y-6">
+              {/* Breadcrumb */}
+              <div className="text-xs text-slate-400 font-semibold flex items-center gap-1.5">
+                <span className="hover:underline cursor-pointer" onClick={() => handleMenuChange("Dashboard")}>Dashboard</span>
+                <span>&gt;</span>
+                <span className={isDark ? "text-slate-200" : "text-slate-700"}>Orders</span>
+              </div>
+
+              {/* Title */}
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                  <ShoppingBag className="w-5 h-5" />
+                </div>
+                <div>
+                  <h1 className={`text-2xl font-black tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>Order Management</h1>
+                  <p className="text-xs text-slate-400">Manage customer orders and their statuses.</p>
+                </div>
+              </div>
+
+              {/* Search & Filter */}
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                <div className={`flex items-center gap-2 border rounded-xl px-4 py-2.5 flex-1 transition ${isDark ? "bg-[#080d1a] border-slate-800" : "bg-white border-slate-200"}`}>
+                  <Search className="w-4 h-4 text-slate-400 shrink-0" />
+                  <input
+                    type="text"
+                    placeholder="Search by order number, name, or phone..."
+                    value={orderSearchQuery}
+                    onChange={(e) => setOrderSearchQuery(e.target.value)}
+                    className={`text-xs flex-1 bg-transparent focus:outline-none ${isDark ? "text-slate-200 placeholder:text-slate-500" : "text-slate-800 placeholder:text-slate-400"}`}
+                  />
+                </div>
+                <select
+                  value={orderStatusFilter}
+                  onChange={(e) => setOrderStatusFilter(e.target.value)}
+                  className={`border rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none transition shrink-0 ${isDark ? "bg-[#080d1a] border-slate-800 text-slate-200" : "bg-white border-slate-200 text-slate-800"}`}
+                >
+                  <option>All Statuses</option>
+                  <option>Pending</option>
+                  <option>Processing</option>
+                  <option>Packed</option>
+                  <option>Shipped</option>
+                  <option>Delivered</option>
+                  <option>Cancelled</option>
+                </select>
+              </div>
+
+              {/* Orders Table */}
+              <div className={`border rounded-2xl overflow-hidden transition-colors ${isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"}`}>
+                {(() => {
+                  const filtered = ordersList.filter(o => {
+                    const q = orderSearchQuery.toLowerCase();
+                    const matchesQ = !q ||
+                      (o.order_number || "").toLowerCase().includes(q) ||
+                      (o.customer_name || "").toLowerCase().includes(q) ||
+                      (o.customer_phone || "").toLowerCase().includes(q);
+                    const matchesStatus = orderStatusFilter === "All Statuses" || o.status === orderStatusFilter;
+                    return matchesQ && matchesStatus;
+                  });
+
+                  if (filtered.length === 0) return (
+                    <div className="py-16 text-center">
+                      <ShoppingBag className="w-10 h-10 text-slate-500 mx-auto mb-3" />
+                      <p className="text-sm font-bold text-slate-400">No orders found</p>
+                      <p className="text-xs text-slate-500 mt-1">Try adjusting your search or filter.</p>
+                    </div>
+                  );
+
+                  return (
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className={`border-b ${isDark ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-500"}`}>
+                          <th className="py-4 px-5 font-bold">Order ID</th>
+                          <th className="py-4 px-5 font-bold">Customer</th>
+                          <th className="py-4 px-5 font-bold">Date</th>
+                          <th className="py-4 px-5 font-bold">Total</th>
+                          <th className="py-4 px-5 font-bold">Order Status</th>
+                          <th className="py-4 px-5 font-bold">Payment Status</th>
+                          <th className="py-4 px-5 font-bold text-right">Action</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${isDark ? "divide-slate-800/60" : "divide-slate-100"}`}>
+                        {filtered.map((order) => (
+                          <tr key={order.id} className={`transition ${isDark ? "hover:bg-slate-800/30" : "hover:bg-slate-50"}`}>
+                            <td className="py-4 px-5">
+                              <span className="font-mono font-bold text-[#0b8bbc] text-[11px]">{order.order_number}</span>
+                            </td>
+                            <td className="py-4 px-5">
+                              <p className={`font-bold text-[11px] ${isDark ? "text-white" : "text-slate-900"}`}>{order.customer_name}</p>
+                              <p className="text-[10px] text-slate-400">{order.customer_phone}</p>
+                            </td>
+                            <td className={`py-4 px-5 text-[11px] ${isDark ? "text-slate-300" : "text-slate-600"}`}>
+                              {order.created_at ? order.created_at.split("T")[0] : "—"}
+                            </td>
+                            <td className={`py-4 px-5 font-bold text-[11px] ${isDark ? "text-white" : "text-slate-900"}`}>
+                              ৳{parseFloat(order.grand_total || "0").toFixed(2)}
+                            </td>
+                            <td className="py-4 px-5">
+                              <span className={`font-bold text-[10px] px-2.5 py-1 rounded-md ${
+                                order.status === "Delivered" ? "bg-emerald-500/10 text-emerald-400" :
+                                order.status === "Packed" ? "bg-amber-500/10 text-amber-400" :
+                                order.status === "Processing" ? "bg-blue-500/10 text-blue-400" :
+                                order.status === "Shipped" ? "bg-purple-500/10 text-purple-400" :
+                                order.status === "Cancelled" ? "bg-rose-500/10 text-rose-400" :
+                                "bg-slate-500/10 text-slate-400"
+                              }`}>
+                                {order.status}
+                              </span>
+                            </td>
+                            <td className="py-4 px-5">
+                              <span className={`font-bold text-[10px] px-2.5 py-1 rounded-md flex items-center gap-1 w-fit ${
+                                order.is_paid ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"
+                              }`}>
+                                <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                                {order.is_paid ? "Paid" : "Pending"}
+                              </span>
+                            </td>
+                            <td className="py-4 px-5 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button
+                                  type="button"
+                                  onClick={() => { setSelectedOrder(order); setOrderStatusUpdate(order.status || ""); }}
+                                  className={`p-2 rounded-lg transition border ${isDark ? "border-slate-700 text-slate-300 hover:bg-slate-800" : "border-slate-200 text-slate-600 hover:bg-slate-100"}`}
+                                  title="View Order"
+                                >
+                                  <Eye className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDownloadInvoice(order)}
+                                  className="p-2 rounded-lg transition border border-blue-500/30 text-blue-400 hover:bg-blue-500/10"
+                                  title="Download Invoice"
+                                >
+                                  <FileText className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteOrder(order.id)}
+                                  className="p-2 rounded-lg transition border border-rose-500/30 text-rose-400 hover:bg-rose-500/10"
+                                  title="Delete Order"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
+
+          {/* ORDER DETAILS SECTION */}
+          {activeMenu === "Order List" && selectedOrder && (
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedOrder(null)}
+                    className={`p-2 rounded-xl transition border ${isDark ? "border-slate-800 text-slate-300 hover:bg-slate-800" : "border-slate-200 text-slate-600 hover:bg-slate-100"}`}
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                  <div>
+                    <h1 className={`text-xl font-black tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>Order details</h1>
+                    <p className="text-xs text-slate-400">Number: {selectedOrder.order_number}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleDownloadInvoice(selectedOrder)}
+                    className="flex items-center gap-2 text-xs font-bold text-blue-400 border border-blue-500/30 hover:bg-blue-500/10 px-4 py-2 rounded-xl transition"
+                  >
+                    <FileText className="w-3.5 h-3.5" /> Download Invoice
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteOrder(selectedOrder.id)}
+                    className="flex items-center gap-2 text-xs font-bold text-rose-400 border border-rose-500/30 hover:bg-rose-500/10 px-4 py-2 rounded-xl transition"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Delete Order
+                  </button>
+                </div>
+              </div>
+
+              {/* 2 Column Layout */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Left: Order Info */}
+                <div className="lg:col-span-2 space-y-6">
+                  {/* Status Summary Card */}
+                  <div className={`border rounded-2xl p-6 space-y-5 ${isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"}`}>
+                    <div className="grid grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Fulfillment</p>
+                        <span className={`font-bold text-[11px] px-3 py-1 rounded-md ${
+                          selectedOrder.status === "Delivered" ? "bg-emerald-500/10 text-emerald-400" :
+                          selectedOrder.status === "Packed" ? "bg-amber-500/10 text-amber-400" :
+                          selectedOrder.status === "Processing" ? "bg-blue-500/10 text-blue-400" :
+                          selectedOrder.status === "Shipped" ? "bg-purple-500/10 text-purple-400" :
+                          selectedOrder.status === "Cancelled" ? "bg-rose-500/10 text-rose-400" :
+                          "bg-slate-500/10 text-slate-400"
+                        }`}>
+                          {selectedOrder.status}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Payment Status</p>
+                        <span className={`font-bold text-[11px] px-3 py-1 rounded-md flex items-center gap-1.5 w-fit ${selectedOrder.is_paid ? "bg-emerald-500/10 text-emerald-400" : "bg-amber-500/10 text-amber-400"}`}>
+                          <span className="w-1.5 h-1.5 rounded-full bg-current"></span>
+                          {selectedOrder.is_paid ? "paid" : "pending"}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">Total Amount</p>
+                        <p className={`text-2xl font-black ${isDark ? "text-white" : "text-slate-900"}`}>৳{parseFloat(selectedOrder.grand_total || "0").toFixed(2)}</p>
+                      </div>
+                    </div>
+
+                    <div className={`border-t pt-4 grid grid-cols-2 gap-4 ${isDark ? "border-slate-800" : "border-slate-200"}`}>
+                      <div>
+                        <p className="text-[10px] text-slate-400 font-semibold mb-1">Date & Time</p>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                          <Calendar className="w-3.5 h-3.5" />
+                          {selectedOrder.created_at ? new Date(selectedOrder.created_at).toLocaleString() : "—"}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-[10px] text-slate-400 font-semibold mb-1">Payment Method</p>
+                        <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                          <CreditCard className="w-3.5 h-3.5" />
+                          {selectedOrder.payment_method === "cod" ? "Cash on Delivery" : (selectedOrder.payment_method || "—")}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Ordered Products */}
+                  <div className={`border rounded-2xl overflow-hidden ${isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"}`}>
+                    <div className={`flex items-center justify-between px-6 py-4 border-b ${isDark ? "border-slate-800" : "border-slate-200"}`}>
+                      <div className="flex items-center gap-2">
+                        <div className="w-6 h-6 rounded-lg bg-emerald-500/10 text-emerald-400 flex items-center justify-center">
+                          <Package className="w-3.5 h-3.5" />
+                        </div>
+                        <h2 className={`text-sm font-bold ${isDark ? "text-white" : "text-slate-900"}`}>Ordered Products</h2>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-400">{(selectedOrder.items || []).length} Items</span>
+                    </div>
+
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className={`border-b ${isDark ? "border-slate-800 text-slate-400" : "border-slate-200 text-slate-500"}`}>
+                          <th className="py-3 px-6 font-bold text-left">Product</th>
+                          <th className="py-3 px-6 font-bold text-right">Price</th>
+                          <th className="py-3 px-6 font-bold text-right">Quantity</th>
+                          <th className="py-3 px-6 font-bold text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className={`divide-y ${isDark ? "divide-slate-800/60" : "divide-slate-100"}`}>
+                        {(selectedOrder.items || []).map((item: any, idx: number) => (
+                          <tr key={idx}>
+                            <td className="py-4 px-6">
+                              <div className="flex items-center gap-3">
+                                <div className={`w-9 h-9 rounded-xl border flex items-center justify-center shrink-0 ${isDark ? "border-slate-700 bg-slate-800/60" : "border-slate-200 bg-slate-50"}`}>
+                                  <Package className="w-4 h-4 text-slate-400" />
+                                </div>
+                                <span className={`font-semibold ${isDark ? "text-slate-200" : "text-slate-800"}`}>{item.product_name}</span>
+                              </div>
+                            </td>
+                            <td className={`py-4 px-6 text-right font-semibold ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+                              ৳{parseFloat(item.unit_price || "0").toFixed(2)}
+                            </td>
+                            <td className={`py-4 px-6 text-right font-semibold ${isDark ? "text-slate-300" : "text-slate-700"}`}>
+                              {item.quantity}
+                            </td>
+                            <td className={`py-4 px-6 text-right font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+                              ৳{parseFloat(item.total_price || "0").toFixed(2)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+
+                    {/* Totals */}
+                    <div className={`border-t px-6 py-4 space-y-2 ${isDark ? "border-slate-800" : "border-slate-200"}`}>
+                      <div className="flex justify-between text-xs text-slate-400">
+                        <span>Subtotal</span>
+                        <span className={isDark ? "text-slate-200" : "text-slate-800"}>৳{parseFloat(selectedOrder.subtotal || "0").toFixed(2)}</span>
+                      </div>
+                      <div className="flex justify-between text-xs text-slate-400">
+                        <span>Shipping Cost</span>
+                        <span className={isDark ? "text-slate-200" : "text-slate-800"}>৳{parseFloat(selectedOrder.shipping_fee || "0").toFixed(2)}</span>
+                      </div>
+                      <div className={`flex justify-between text-sm font-black pt-2 border-t ${isDark ? "border-slate-800 text-white" : "border-slate-200 text-slate-900"}`}>
+                        <span>Order Total</span>
+                        <span className="text-emerald-400">৳{parseFloat(selectedOrder.grand_total || "0").toFixed(2)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Right: Sidebar */}
+                <div className="space-y-5">
+                  {/* Update Order Status */}
+                  <div className={`border rounded-2xl p-5 space-y-4 ${isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"}`}>
+                    <h3 className={`text-sm font-bold ${isDark ? "text-white" : "text-slate-900"}`}>Update Order Status</h3>
+                    <select
+                      value={orderStatusUpdate}
+                      onChange={(e) => setOrderStatusUpdate(e.target.value)}
+                      className={`w-full border rounded-xl px-4 py-2.5 text-xs font-semibold focus:outline-none transition ${isDark ? "bg-[#060911] border-slate-800 text-slate-200" : "bg-slate-50 border-slate-200 text-slate-800"}`}
+                    >
+                      <option value="Pending">Pending</option>
+                      <option value="Processing">Processing</option>
+                      <option value="Packed">Packed</option>
+                      <option value="Shipped">Shipped</option>
+                      <option value="Delivered">Delivered</option>
+                      <option value="Cancelled">Cancelled</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleUpdateOrderStatus}
+                      disabled={updatingOrderStatus}
+                      className="w-full bg-[#0B3B82] hover:bg-[#0B3B82]/90 disabled:opacity-60 text-white font-bold text-xs py-2.5 rounded-xl transition cursor-pointer"
+                    >
+                      {updatingOrderStatus ? "Updating..." : "Update Status"}
+                    </button>
+                  </div>
+
+                  {/* Customer Details */}
+                  <div className={`border rounded-2xl p-5 space-y-4 ${isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"}`}>
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-slate-400" />
+                      <h3 className={`text-sm font-bold ${isDark ? "text-white" : "text-slate-900"}`}>Customer Details</h3>
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-[#0B3B82] text-white flex items-center justify-center font-black text-sm shrink-0">
+                        {(selectedOrder.customer_name || "?").charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className={`font-bold text-sm ${isDark ? "text-white" : "text-slate-900"}`}>{selectedOrder.customer_name}</p>
+                        <p className="text-[11px] text-slate-400">{selectedOrder.customer_email}</p>
+                      </div>
+                    </div>
+                    <div className={`border-t pt-3 ${isDark ? "border-slate-800" : "border-slate-200"}`}>
+                      <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-1">Phone</p>
+                      <p className={`font-mono font-semibold text-xs ${isDark ? "text-slate-200" : "text-slate-800"}`}>{selectedOrder.customer_phone}</p>
+                    </div>
+                  </div>
+
+                  {/* Shipping Details */}
+                  <div className={`border rounded-2xl p-5 space-y-4 ${isDark ? "bg-[#080d1a] border-slate-800/80" : "bg-white border-slate-200 shadow-sm"}`}>
+                    <div className="flex items-center gap-2">
+                      <MapPin className="w-4 h-4 text-emerald-400" />
+                      <h3 className={`text-sm font-bold ${isDark ? "text-white" : "text-slate-900"}`}>Shipping Details</h3>
+                    </div>
+                    <div>
+                      <p className={`font-bold text-xs mb-1 ${isDark ? "text-white" : "text-slate-900"}`}>{selectedOrder.customer_name}</p>
+                      <p className="text-[11px] text-slate-400 leading-relaxed">{selectedOrder.shipping_address}</p>
+                      {selectedOrder.district && <p className="text-[11px] text-slate-400 mt-0.5">{selectedOrder.district}</p>}
+                    </div>
+                    {selectedOrder.order_notes && (
+                      <div className={`border-t pt-3 ${isDark ? "border-slate-800" : "border-slate-200"}`}>
+                        <p className="text-[10px] text-slate-400 font-semibold uppercase tracking-wider mb-1">Order Notes</p>
+                        <p className="text-[11px] text-slate-300 italic">{selectedOrder.order_notes}</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             </div>
           )}
 
